@@ -4,11 +4,6 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is required");
 }
 
-// Determinar si estamos en entorno local o producción automáticamente
-const isLocalDb = process.env.DATABASE_URL?.includes("127.0.0.1") || 
-                  process.env.DATABASE_URL?.includes("localhost") ||
-                  process.env.NODE_ENV === "development";
-
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   
@@ -21,15 +16,15 @@ export const pool = new Pool({
   statement_timeout: 10_000, 
   
   // Cierra conexiones que no se usen en 30 segundos (para no gastar RAM innecesaria).
-  idleTimeoutMillis: 30_000,
+  idleTimeoutMillis: 30_000, 
   
   // Si PostgreSQL está caído, no esperamos 5 segundos, fallamos rápido (2 seg).
   connectionTimeoutMillis: 2000,
   
-  // SEGURIDAD DE PRODUCCIÓN: SSL dinámico.
-  // Local: false (para no dar dolores de cabeza de certificados).
-  // Producción: true (obligatorio para bases de datos en la nube).
-  ssl: isLocalDb ? false : { rejectUnauthorized: true },
+  // Railway requires SSL with relaxed verification
+  ssl: process.env.NODE_ENV === 'production' 
+    ? { rejectUnauthorized: false } 
+    : false,
 });
 
 pool.on("error", (err) => {
