@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.local
+dist/
+*.log
+.DS_Store
+.ruff_cache/
+.claude/settings.local.json
+sdk/__pycache__/
+*.pyc
+*.tsbuildinfo
+.qodo/
+.vscode/
+simulator/output/
+dashboard/output/
