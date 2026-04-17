@@ -74,9 +74,11 @@ agentsRouter.post("/", async (req, res) => {
     const shareA = Buffer.from(shares[0]!);
     const shareB = Buffer.from(shares[1]!);
 
-// CRYPTOGRAPHIC FLOW FIX:
-// 1. Server stores derived partialAKey, NOT raw shareA.
-// 2. This allows events.ts to do normal HMAC without deriving again.
+// DTS CRYPTOGRAPHIC FLOW:
+// ShareA → derives partialAKey via HKDF → stored encrypted in hmac_key
+// ShareB → returned to client as fragmentB
+// ShareC → derived from hardwareFingerprint via HKDF → stored in meta.dts_share_c
+// All three shares required for valid signature verification
 const partialAKey = Buffer.from(
   hkdfSync("sha256", shareA, Buffer.alloc(0), "dts_partial_a_v2", 32) as ArrayBuffer,
 );
