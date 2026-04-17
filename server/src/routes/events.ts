@@ -96,8 +96,6 @@ function determineSignatureValidity(
   event: IncomingEvent,
   hmacKey: string | null,
   signingVersion: number,
-  storedShareC: string | null,
-  eventFp: string | null,
   context: AgentSignatureContext,
 ): boolean {
   if (hmacKey === null) {
@@ -106,23 +104,6 @@ function determineSignatureValidity(
   }
 
   if (signingVersion === 2) {
-    if (storedShareC && eventFp) {
-      const derivedShareC = Buffer.from(
-        hkdfSync(
-          "sha256",
-          Buffer.from(eventFp, "hex"),
-          Buffer.alloc(0),
-          "dts_share_c_v1",
-          32
-        ) as ArrayBuffer
-      ).toString("hex");
-
-      if (derivedShareC !== storedShareC) {
-        logEvent("warn", "DTS ShareC verification failed: hardware fingerprint mismatch", context);
-        return false;
-      }
-    }
-
     const signatureValid = verifySignatureV2(event, hmacKey);
     if (!signatureValid) {
       logEvent("warn", "DTS signature verification failed: XOR(partial_A, partial_B) does not match event.signature", context);
@@ -233,7 +214,6 @@ eventsRouter.post("/batch", async (req, res) => {
   const row = agentLookup.rows[0]!;
   const agentId = row.id;
   const decryptedHmacKey = row.hmac_key ? decryptSecret(row.hmac_key) : null;
-  const agentFp = typeof row.meta?.hardwareFingerprint === "string" ? row.meta.hardwareFingerprint : null;
   const storedShareC = typeof row.meta?.dts_share_c === "string" ? row.meta.dts_share_c : null;
 
   const validatedEvents: Array<{ event: typeof events[number]; serverWithinScope: boolean; signatureValid: boolean; finalMeta: Record<string, unknown> | null }> = [];
@@ -247,7 +227,24 @@ eventsRouter.post("/batch", async (req, res) => {
 
     const serverWithinScope = row.scope.includes(event.action);
     const eventFp = event.meta && typeof event.meta.hardwareFingerprint === "string" ? event.meta.hardwareFingerprint : null;
-    const signatureValid = determineSignatureValidity(event, decryptedHmacKey, row.signing_version, storedShareC, eventFp, {
+    
+    let hardwareConflict = false;
+    if (storedShareC && eventFp) {
+      const derivedShareC = Buffer.from(
+        hkdfSync(
+          "sha256",
+          Buffer.from(eventFp, "hex"),
+          Buffer.alloc(0),
+          "dts_share_c_v1",
+          32
+        ) as ArrayBuffer
+      ).toString("hex");
+      if (derivedShareC !== storedShareC) {
+        hardwareConflict = true;
+      }
+    }
+    
+    const signatureValid = determineSignatureValidity(event, decryptedHmacKey, row.signing_version, {
       apiKeyId: req.apiKeyId,
       eventId: event.eventId,
       agentDid: event.agentDid,
@@ -259,17 +256,9 @@ eventsRouter.post("/batch", async (req, res) => {
       ? { ...event.meta, rate_limit_exceeded: true }
       : (event.meta ?? null);
 
-    if (agentFp !== null) {
-      const eventFp = event.meta && typeof event.meta.hardwareFingerprint === "string"
-        ? event.meta.hardwareFingerprint
-        : null;
-      if (eventFp === null) {
-        finalMeta = { ...(finalMeta ?? {}), hardware_fp_missing: true };
-        recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "hardware_fp_missing" }).catch(() => {});
-      } else if (eventFp !== agentFp) {
-        finalMeta = { ...(finalMeta ?? {}), hardware_conflict: true, expected_fp: agentFp, received_fp: eventFp };
-        recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "hardware_conflict" }).catch(() => {});
-      }
+    if (hardwareConflict) {
+      finalMeta = { ...(finalMeta ?? {}), hardware_conflict: true };
+      recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "hardware_conflict" }).catch(() => {});
     }
 
     if (rateLimitExceeded) {
@@ -493,6 +482,23 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void
   const serverWithinScope = scope.includes(event.action);
   const storedShareC = typeof agentMeta?.dts_share_c === "string" ? agentMeta.dts_share_c : null;
   const eventFp = event.meta && typeof event.meta.hardwareFingerprint === "string" ? event.meta.hardwareFingerprint : null;
+  
+  let hardwareConflict = false;
+  if (storedShareC && eventFp) {
+    const derivedShareC = Buffer.from(
+      hkdfSync(
+        "sha256",
+        Buffer.from(eventFp, "hex"),
+        Buffer.alloc(0),
+        "dts_share_c_v1",
+        32
+      ) as ArrayBuffer
+    ).toString("hex");
+    if (derivedShareC !== storedShareC) {
+      hardwareConflict = true;
+    }
+  }
+  
   if (event.withinScope && !serverWithinScope) {
     logEvent("warn", "Scope conflict: agent reported withinScope=true but action is not in declared scope", {
       apiKeyId,
@@ -501,7 +507,7 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void
       action: event.action,
     });
   }
-  const signatureValid = determineSignatureValidity(event, decryptedHmacKey, signingVersion, storedShareC, eventFp, {
+  const signatureValid = determineSignatureValidity(event, decryptedHmacKey, signingVersion, {
     apiKeyId,
     eventId: event.eventId,
     agentDid: event.agentDid,
@@ -526,26 +532,9 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void
     ? { ...event.meta, rate_limit_exceeded: true }
     : (event.meta ?? null);
 
-  const agentFp = typeof agentMeta?.hardwareFingerprint === "string" ? agentMeta.hardwareFingerprint : null;
-  
-  // --- INICIO DE DETECCIÓN DE ANOMALÍAS (SINGLE) ---
-  if (agentFp !== null) {
-    const eventFp = event.meta && typeof event.meta.hardwareFingerprint === "string"
-      ? event.meta.hardwareFingerprint
-      : null;
-    if (eventFp === null) {
-      logEvent("warn", "Hardware fingerprint missing from event", { apiKeyId, eventId: event.eventId, agentId });
-      finalMeta = { ...(finalMeta ?? {}), hardware_fp_missing: true };
-      // REGISTRO DE ANOMALÍA 4
-      recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "hardware_fp_missing" }).catch(() => {});
-    } else if (eventFp !== agentFp) {
-      logEvent("warn", "Hardware fingerprint mismatch: event may originate from a different machine", {
-        apiKeyId, eventId: event.eventId, agentId,
-      });
-      finalMeta = { ...(finalMeta ?? {}), hardware_conflict: true, expected_fp: agentFp, received_fp: eventFp };
-      // REGISTRO DE ANOMALÍA 5
-      recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "hardware_conflict" }).catch(() => {});
-    }
+  if (hardwareConflict) {
+    finalMeta = { ...(finalMeta ?? {}), hardware_conflict: true };
+    recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "hardware_conflict" }).catch(() => {});
   }
 
   if (rateLimitExceeded) {

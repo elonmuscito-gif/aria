@@ -42,7 +42,7 @@ app.use((req, _res, next) => {
   ];
 
   const isSuspicious = suspiciousPatterns.some((p) =>
-    path.toLowerCase().includes(p)
+    path.toLowerCase() === p || path.toLowerCase().startsWith(p + "/")
   );
 
   if (isSuspicious) {
@@ -102,6 +102,10 @@ app.use(
     },
   })
 );
+
+setInterval(() => {
+  scanningIPs.clear();
+}, 10 * 60 * 1000);
 
 async function waitForServer(url: string, retries = 10): Promise<void> {
   for (let i = 0; i < retries; i++) {
