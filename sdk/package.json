@@ -1,0 +1,27 @@
+{
+  "name": "aria-sdk",
+  "version": "0.1.0",
+  "description": "Official SDK for ARIA - Trust Infrastructure for AI Agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "aria",
+    "ai-agents",
+    "trust",
+    "audit",
+    "compliance"
+  ],
+  "author": "ARIA",
+  "license": "BUSL-1.1",
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "typescript": "^5.0.0"
+  }
+}
