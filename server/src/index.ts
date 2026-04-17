@@ -51,7 +51,11 @@ if (!SETUP_KEY) {
 
 app.use(helmet({ contentSecurityPolicy: false, xPoweredBy: false }));
 app.disable("x-powered-by");
-app.use(cors());
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:3001", "http://localhost:8080"],
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 
 app.use(express.json({ limit: "1mb" }));
 
