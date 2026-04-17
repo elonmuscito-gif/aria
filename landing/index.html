@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARIA — Trust Infrastructure for AI Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+:root {
+  --black: #0a0a0a;
+  --gold: #b8962e;
+  --gold2: #d4a843;
+  --muted: #666;
+  --light: #f5f5f5;
+  --sans: 'Outfit', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+
+body {
+  font-family: var(--sans);
+  background: #fff;
+  color: var(--black);
+  overflow-x: hidden;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  z-index: 100;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid #eee;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.logo-text {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 5px;
+  color: var(--black);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav-right a {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.nav-right a:hover { color: var(--black); }
+
+.nav-btn {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #fff !important;
+  background: var(--black);
+  padding: 8px 20px;
+  border-radius: 4px;
+  transition: background 0.2s !important;
+}
+
+.nav-btn:hover { background: #333 !important; color: #fff !important; }
+
+/* ── HERO ── */
+.hero {
+  height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 80px;
+  overflow: hidden;
+}
+
+/* Big background text */
+.hero-bg-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(120px, 20vw, 220px);
+  font-weight: 700;
+  letter-spacing: -8px;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(0,0,0,0.06);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Pyramid SVG centered */
+.hero-pyramid {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 700px;
+  padding: 0 24px;
+}
+
+.hero-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.hero-title {
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -1.5px;
+  margin-bottom: 16px;
+  color: var(--black);
+}
+
+.hero-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-dark {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--black);
+  border: none;
+  padding: 13px 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.btn-dark:hover { background: #333; }
+
+.btn-outline {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--black);
+  background: rgba(0,0,0,0.05);
+  border: none;
+  padding: 13px 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.btn-outline:hover { background: rgba(0,0,0,0.1); }
+
+/* ── SECTION ── */
+.section {
+  padding: 100px 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.section-sm {
+  padding: 80px 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+h2 {
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 600;
+  letter-spacing: -1px;
+  line-height: 1.15;
+  margin-bottom: 16px;
+}
+
+.lead {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 500px;
+}
+
+.divider { height: 1px; background: #eee; }
+
+/* ── 3 CARDS ── */
+.three-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 52px;
+}
+
+.card {
+  background: var(--light);
+  border-radius: 12px;
+  padding: 32px 28px;
+  transition: transform 0.2s;
+}
+
+.card:hover { transform: translateY(-3px); }
+
+.card-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 20px;
+}
+
+.card h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.card p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.card-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--gold);
+  background: rgba(184,150,46,0.1);
+  padding: 3px 8px;
+  border-radius: 3px;
+  margin-top: 14px;
+}
+
+/* ── STEPS ── */
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin-top: 52px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.step {
+  padding: 40px 32px;
+  border-right: 1px solid #eee;
+}
+
+.step:last-child { border-right: none; }
+
+.step-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.step h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.step p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.step-code {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--black);
+  background: var(--light);
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-top: 12px;
+}
+
+/* ── WHO ── */
+.who-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 52px;
+}
+
+.who-item {
+  padding: 24px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.who-item:hover {
+  border-color: rgba(184,150,46,0.3);
+  background: rgba(184,150,46,0.03);
+}
+
+.who-emoji { font-size: 22px; margin-bottom: 10px; }
+
+.who-item h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.who-item p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ── CTA SECTION ── */
+.cta-wrap {
+  background: var(--black);
+  padding: 100px 40px;
+  text-align: center;
+}
+
+.cta-wrap h2 {
+  color: #fff;
+  font-size: clamp(28px, 4vw, 44px);
+  margin-bottom: 16px;
+}
+
+.cta-wrap .lead {
+  color: rgba(255,255,255,0.5);
+  margin: 0 auto 32px;
+}
+
+.cta-url {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--gold2);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 20px;
+  border-radius: 4px;
+  margin-bottom: 32px;
+  letter-spacing: 0.5px;
+}
+
+.btn-gold {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--black);
+  background: var(--gold2);
+  border: none;
+  padding: 14px 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.btn-gold:hover { background: #e8c87a; }
+
+/* ── FOOTER ── */
+footer {
+  padding: 28px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #eee;
+}
+
+.footer-logo {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 4px;
+  color: var(--black);
+}
+
+.footer-mid {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #bbb;
+  letter-spacing: 1px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-links a {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-links a:hover { color: var(--black); }
+
+/* ── REVEAL ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  nav { padding: 0 20px; }
+  .nav-right a:not(.nav-btn) { display: none; }
+  .three-grid, .steps-grid, .who-grid { grid-template-columns: 1fr; }
+  .step { border-right: none; border-bottom: 1px solid #eee; }
+  .step:last-child { border-bottom: none; }
+  footer { flex-direction: column; gap: 12px; text-align: center; }
+  .section, .section-sm { padding: 60px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo">
+    <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
+      <line x1="10" y1="1" x2="1" y2="15" stroke="#b8962e" stroke-width="1"/>
+      <line x1="10" y1="1" x2="19" y2="15" stroke="#b8962e" stroke-width="1"/>
+      <line x1="4.5" y1="10" x2="15.5" y2="10" stroke="#b8962e" stroke-width="0.6" opacity="0.6"/>
+      <circle cx="10" cy="1" r="1.2" fill="#d4a843"/>
+    </svg>
+    <span class="logo-text">ARIA</span>
+  </a>
+  <div class="nav-right">
+    <a href="#what">Product</a>
+    <a href="#how">How it works</a>
+    <a href="#who">Industries</a>
+    <a href="#contact" class="nav-btn">Get Started</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-bg-text">ARIA</div>
+
+  <!-- Animated pyramid -->
+  <div class="hero-pyramid">
+    <svg width="900" height="600" viewBox="0 0 900 600" fill="none" style="opacity:0.12">
+      <g stroke="#b8962e" stroke-width="0.8">
+        <line x1="450" y1="80"  x2="100" y2="520"/>
+        <line x1="450" y1="80"  x2="800" y2="520"/>
+        <line x1="450" y1="80"  x2="160" y2="420"/>
+        <line x1="450" y1="80"  x2="740" y2="420"/>
+        <line x1="450" y1="80"  x2="220" y2="340"/>
+        <line x1="450" y1="80"  x2="680" y2="340"/>
+        <line x1="450" y1="80"  x2="280" y2="260"/>
+        <line x1="450" y1="80"  x2="620" y2="260"/>
+        <line x1="450" y1="80"  x2="340" y2="180"/>
+        <line x1="450" y1="80"  x2="560" y2="180"/>
+        <!-- Wave -->
+        <path d="M 100 520 Q 200 380 450 80 Q 600 200 800 100 Q 880 60 880 180 Q 800 350 700 460 Q 600 540 500 560 Q 350 580 100 520 Z" opacity="0.4"/>
+      </g>
+      <circle cx="450" cy="80" r="4" fill="#d4a843" opacity="0.8"/>
+      <!-- Floating dots -->
+      <circle cx="200" cy="400" r="2" fill="#b8962e" opacity="0.5"/>
+      <circle cx="300" cy="300" r="1.5" fill="#b8962e" opacity="0.4"/>
+      <circle cx="650" cy="350" r="2" fill="#b8962e" opacity="0.5"/>
+      <circle cx="550" cy="200" r="1.5" fill="#b8962e" opacity="0.4"/>
+      <circle cx="700" cy="450" r="2" fill="#b8962e" opacity="0.3"/>
+    </svg>
+  </div>
+
+  <div class="hero-content">
+    <div class="hero-tag">Now in production · Phase 1</div>
+    <h1 class="hero-title">Trust Infrastructure<br>for AI Agents</h1>
+    <div class="hero-sub">Autonomous Registry for Intelligence Accountability</div>
+    <div class="hero-actions">
+      <a href="#contact" class="btn-dark">Get Started</a>
+      <a href="https://github.com/elonmuscito-gif/aria" target="_blank" class="btn-outline">View GitHub</a>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- WHAT IS ARIA -->
+<div class="section" id="what">
+  <div class="reveal">
+    <h2>Every AI agent needs<br>an identity.</h2>
+    <p class="lead">Companies deploy AI agents that act on their behalf. ARIA is the infrastructure that makes those agents auditable, verifiable, and trustworthy.</p>
+  </div>
+  <div class="three-grid">
+    <div class="card reveal">
+      <svg class="card-icon" viewBox="0 0 40 40" fill="none" stroke="#b8962e" stroke-width="1.5">
+        <circle cx="20" cy="14" r="6"/>
+        <path d="M8 36c0-6.627 5.373-10 12-10s12 3.373 12 10"/>
+      </svg>
+      <h3>Cryptographic Identity</h3>
+      <p>Every agent gets a permanent decentralized identifier. Unique, immutable, unforgeable.</p>
+      <span class="card-tag">did:agentrust:&lt;uuid&gt;</span>
+    </div>
+    <div class="card reveal">
+      <svg class="card-icon" viewBox="0 0 40 40" fill="none" stroke="#b8962e" stroke-width="1.5">
+        <rect x="8" y="8" width="24" height="28" rx="2"/>
+        <line x1="14" y1="18" x2="26" y2="18"/>
+        <line x1="14" y1="24" x2="22" y2="24"/>
+        <line x1="14" y1="30" x2="20" y2="30"/>
+      </svg>
+      <h3>Immutable Audit Trail</h3>
+      <p>Every action signed with HMAC-SHA256 and recorded. Append-only. Ready for any auditor.</p>
+      <span class="card-tag">tamper-proof</span>
+    </div>
+    <div class="card reveal">
+      <svg class="card-icon" viewBox="0 0 40 40" fill="none" stroke="#b8962e" stroke-width="1.5">
+        <polyline points="6,28 14,18 22,22 34,10"/>
+        <polyline points="26,10 34,10 34,18"/>
+      </svg>
+      <h3>Reputation Score</h3>
+      <p>Trust computed from real verified behavior — not self-reported. Trusted, Neutral, or Untrusted.</p>
+      <span class="card-tag">server-verified</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- HOW IT WORKS -->
+<div class="section" id="how">
+  <div class="reveal">
+    <h2>Up and running<br>in minutes.</h2>
+    <p class="lead">Three steps to give your agents a verified identity and audit trail.</p>
+  </div>
+  <div class="steps-grid reveal">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>Register your agent</h3>
+      <p>Install the SDK and register your agent with a name and declared scope. Receive a cryptographic DID and secret.</p>
+      <span class="step-code">npm install aria-sdk</span>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>Track every action</h3>
+      <p>Wrap your agent's actions. ARIA verifies scope, signs events, and detects anomalies in real time — server-side.</p>
+      <span class="step-code">agent.track('action', fn)</span>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>Prove compliance</h3>
+      <p>Show regulators and auditors a verified history of every action your agent took — with cryptographic proof.</p>
+      <span class="step-code">audit-ready</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- FOR WHO -->
+<div class="section" id="who">
+  <div class="reveal">
+    <h2>Built for industries where<br>trust is non-negotiable.</h2>
+    <p class="lead">ARIA was designed for regulated environments where an AI agent making a wrong move has real consequences.</p>
+  </div>
+  <div class="who-grid">
+    <div class="who-item reveal">
+      <div class="who-emoji">🏦</div>
+      <h4>Fintech</h4>
+      <p>Agents that process payments or access financial data need verifiable audit trails.</p>
+    </div>
+    <div class="who-item reveal">
+      <div class="who-emoji">⚖️</div>
+      <h4>Legal Tech</h4>
+      <p>Agents that draft contracts must operate within declared boundaries — and prove it.</p>
+    </div>
+    <div class="who-item reveal">
+      <div class="who-emoji">🏥</div>
+      <h4>Insurtech</h4>
+      <p>Claims agents need immutable records of every decision for compliance.</p>
+    </div>
+    <div class="who-item reveal">
+      <div class="who-emoji">🏢</div>
+      <h4>Enterprise</h4>
+      <p>Any company deploying AI agents needs accountability infrastructure — not promises.</p>
+    </div>
+    <div class="who-item reveal">
+      <div class="who-emoji">🔐</div>
+      <h4>Security</h4>
+      <p>Real-time anomaly detection when agents deviate from declared behavior.</p>
+    </div>
+    <div class="who-item reveal">
+      <div class="who-emoji">⚙️</div>
+      <h4>Developers</h4>
+      <p>Build with confidence. Give your agents identity and accountability from day one.</p>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta-wrap" id="contact">
+  <h2 class="reveal">Ready to make your<br>agents accountable?</h2>
+  <p class="lead reveal">ARIA is live in production. Connect your first agent in minutes.</p>
+  <div class="cta-url reveal">aria-production-0458.up.railway.app</div>
+  <br>
+  <div style="display:flex;gap:12px;justify-content:center" class="reveal">
+    <a href="mailto:elonmuscito@gmail.com" class="btn-gold">Contact Us</a>
+    <a href="https://github.com/elonmuscito-gif/aria" target="_blank" style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.08);border:none;padding:14px 32px;border-radius:4px;cursor:pointer;text-decoration:none;transition:background 0.2s">View Docs</a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">ARIA</div>
+  <div class="footer-mid">BUSL-1.1 · © 2026 · Verified by Design</div>
+  <div class="footer-links">
+    <a href="https://github.com/elonmuscito-gif/aria">GitHub</a>
+    <a href="mailto:elonmuscito@gmail.com">Contact</a>
+  </div>
+</footer>
+
+<script>
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+</script>
+
+</body>
+</html>

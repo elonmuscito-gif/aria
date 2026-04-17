@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 import { agentsRouter } from "./routes/agents.js";
 import { eventsRouter } from "./routes/events.js";
 import { checkHealth, query } from "./db/pool.js";
+import { requireApiKey } from "./middleware/auth.js";
 import rateLimit from 'express-rate-limit';
 
 // 2. MANEJO DE ERRORES CRÍTICOS
@@ -132,6 +133,67 @@ app.post("/v1/setup", async (req, res) => {
 // 5. RUTAS PROTEGIDAS
 app.use("/v1/agents", apiLimiter, agentsRouter);
 app.use("/v1/events", apiLimiter, eventsRouter);
+
+// ENDPOINT 2: Create new API key
+app.post("/v1/api-keys", requireApiKey, async (req, res) => {
+  const { label } = req.body as { label?: string };
+  
+  if (!label || typeof label !== "string" || label.trim().length === 0) {
+    return res.status(400).json({ error: "label is required", code: "MISSING_LABEL" });
+  }
+
+  try {
+    const newKey = randomUUID();
+    const keySha256 = createHash("sha256").update(newKey).digest("hex");
+    const keyHash = await bcrypt.hash(newKey, 10);
+    
+    const result = await query<{ id: string }>(
+      "INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+      [randomUUID(), keyHash, keySha256, label.trim(), req.ownerEmail]
+    );
+
+    res.status(201).json({ 
+      api_key: newKey, 
+      label: label.trim(), 
+      created_at: new Date().toISOString() 
+    });
+  } catch (e) {
+    console.error("[api-keys] Error:", e);
+    res.status(500).json({ error: "Failed to create API key", code: "CREATE_KEY_ERROR" });
+  }
+});
+
+// ENDPOINT 3: Rotate API key
+app.post("/v1/api-keys/rotate", requireApiKey, async (req, res) => {
+  const { label } = req.body as { label?: string };
+  const newLabel = label?.trim() || "rotated-key";
+
+  try {
+    const newKey = randomUUID();
+    const keySha256 = createHash("sha256").update(newKey).digest("hex");
+    const keyHash = await bcrypt.hash(newKey, 10);
+    
+    // Insert new key
+    await query(
+      "INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email) VALUES ($1, $2, $3, $4, $5)",
+      [randomUUID(), keyHash, keySha256, newLabel, req.ownerEmail]
+    );
+
+    // Revoke old key
+    await query(
+      "UPDATE api_keys SET revoked_at = NOW() WHERE id = $1",
+      [req.apiKeyId]
+    );
+
+    res.status(201).json({ 
+      new_api_key: newKey, 
+      message: "Old key revoked" 
+    });
+  } catch (e) {
+    console.error("[api-keys] Rotate error:", e);
+    res.status(500).json({ error: "Failed to rotate API key", code: "ROTATE_KEY_ERROR" });
+  }
+});
 
 app.get("/health", async (_req, res) => {
   const dbOk = await checkHealth();

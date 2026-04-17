@@ -99,6 +99,12 @@ agentsRouter.post("/", async (req, res) => {
 });
 
 agentsRouter.get("/", async (req, res) => {
+  const { name } = req.query as { name?: string };
+  
+  const nameFilter = name && typeof name === "string" && name.trim().length > 0
+    ? { text: "AND a.name ILIKE $2", param: `%${name.trim()}%` }
+    : { text: "", param: null };
+
   const result = await query<{
     did: string;
     name: string;
@@ -116,9 +122,9 @@ agentsRouter.get("/", async (req, res) => {
        r.success_rate
      FROM agents a
      LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
-     WHERE a.api_key_id = $1
+     WHERE a.api_key_id = $1 ${nameFilter.text}
      ORDER BY a.created_at DESC`,
-    [req.apiKeyId],
+    nameFilter.param ? [req.apiKeyId, nameFilter.param] : [req.apiKeyId],
   );
 
   const maskDid = (did: string) => {
