@@ -4,6 +4,7 @@ import { query, transaction } from "../db/pool.js";
 import { requireApiKey } from "../middleware/auth.js";
 import { reputationQueue } from "../services/reputation.js";
 import { recordAnomaly } from "../services/anomaly-detector.js";
+import { decryptSecret } from "../utils/crypto.js";
 
 const SENSITIVE_META_FIELDS = [
   'hardwareFingerprint',
@@ -211,6 +212,7 @@ eventsRouter.post("/batch", async (req, res) => {
 
   const row = agentLookup.rows[0]!;
   const agentId = row.id;
+  const decryptedHmacKey = row.hmac_key ? decryptSecret(row.hmac_key) : null;
   const agentFp = typeof row.meta?.hardwareFingerprint === "string" ? row.meta.hardwareFingerprint : null;
 
   const validatedEvents: Array<{ event: typeof events[number]; serverWithinScope: boolean; signatureValid: boolean; finalMeta: Record<string, unknown> | null }> = [];
@@ -223,7 +225,7 @@ eventsRouter.post("/batch", async (req, res) => {
     }
 
     const serverWithinScope = row.scope.includes(event.action);
-    const signatureValid = determineSignatureValidity(event, row.hmac_key, row.signing_version, {
+    const signatureValid = determineSignatureValidity(event, decryptedHmacKey, row.signing_version, {
       apiKeyId: req.apiKeyId,
       eventId: event.eventId,
       agentDid: event.agentDid,
@@ -464,7 +466,8 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void
     throw new Error("AGENT_NOT_FOUND");
   }
 
-  const { id: agentId, scope, hmac_key: hmacKey, meta: agentMeta, signing_version: signingVersion } = agent.rows[0]!;
+  const { id: agentId, scope, hmac_key: rawHmacKey, meta: agentMeta, signing_version: signingVersion } = agent.rows[0]!;
+  const decryptedHmacKey = rawHmacKey ? decryptSecret(rawHmacKey) : null;
   const serverWithinScope = scope.includes(event.action);
   if (event.withinScope && !serverWithinScope) {
     logEvent("warn", "Scope conflict: agent reported withinScope=true but action is not in declared scope", {
@@ -474,7 +477,7 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void
       action: event.action,
     });
   }
-  const signatureValid = determineSignatureValidity(event, hmacKey, signingVersion, {
+  const signatureValid = determineSignatureValidity(event, decryptedHmacKey, signingVersion, {
     apiKeyId,
     eventId: event.eventId,
     agentDid: event.agentDid,

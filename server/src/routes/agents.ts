@@ -4,6 +4,7 @@ import * as sss from "shamirs-secret-sharing";
 import bcrypt from "bcrypt";
 import { query } from "../db/pool.js";
 import { requireApiKey } from "../middleware/auth.js";
+import { encryptSecret } from "../utils/crypto.js";
 
 export const agentsRouter = Router();
 
@@ -76,11 +77,13 @@ hmacKey = partialAKey.toString("hex"); // Database stores the derived key
     responseCredentials = { secret };
   }
 
+  const encryptedHmacKey = encryptSecret(hmacKey);
+
   const result = await query<{ id: string; created_at: string }>(
     `INSERT INTO agents (did, name, scope, api_key_id, public_key, secret_hash, hmac_key, meta, signing_version)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING id, created_at`,
-    [did, name.trim(), scope, req.apiKeyId, publicKey, secretHash, hmacKey, storedMeta, signingVersion],
+    [did, name.trim(), scope, req.apiKeyId, publicKey, secretHash, encryptedHmacKey, storedMeta, signingVersion],
   );
 
   const agent = result.rows[0]!;
