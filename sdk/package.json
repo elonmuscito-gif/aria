@@ -1,5 +1,5 @@
 {
-  "name": "aria-sdk",
+  "name": "@elonmuscito/aria-sdk",
   "version": "0.1.1",
   "description": "Official SDK for ARIA - Trust Infrastructure for AI Agents",
   "main": "dist/index.js",
