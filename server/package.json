@@ -5,13 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npm run start:full",
+    "start": "npx tsx src/index.ts",
     "migrate": "npx tsx migrate.ts",
     "migrate:007": "npx tsx migrate-007.ts",
     "migrate:008": "npx tsx migrate-008.ts",
     "cli": "node cli-dashboard.mjs",
     "membrane": "npx tsx src/membrane.ts",
-    "start:full": "concurrently \"npm start\" \"npm run membrane\""
+    "start:full": "npx concurrently \"npm run start\" \"npm run membrane\""
   },
   "keywords": [],
   "author": "",

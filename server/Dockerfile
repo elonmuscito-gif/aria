@@ -4,5 +4,5 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 ENV NODE_ENV=production
-EXPOSE 3001
-CMD ["npx", "tsx", "src/index.ts"]
+EXPOSE 3001 8080
+CMD ["npm", "run", "start:full"]
