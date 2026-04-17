@@ -7,6 +7,7 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import { agentsRouter } from "./routes/agents.js";
 import { eventsRouter } from "./routes/events.js";
+import { authRouter } from "./routes/auth.js";
 import { checkHealth, query } from "./db/pool.js";
 import { requireApiKey } from "./middleware/auth.js";
 import rateLimit from 'express-rate-limit';
@@ -133,6 +134,7 @@ app.post("/v1/setup", async (req, res) => {
 // 5. RUTAS PROTEGIDAS
 app.use("/v1/agents", apiLimiter, agentsRouter);
 app.use("/v1/events", apiLimiter, eventsRouter);
+app.use("/v1/auth", authRouter);
 
 // ENDPOINT 2: Create new API key
 app.post("/v1/api-keys", requireApiKey, async (req, res) => {

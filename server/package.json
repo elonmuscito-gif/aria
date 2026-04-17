@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npx tsx src/index.ts",
     "migrate": "npx tsx migrate.ts",
+    "migrate:007": "npx tsx migrate-007.ts",
     "cli": "node cli-dashboard.mjs"
   },
   "keywords": [],
