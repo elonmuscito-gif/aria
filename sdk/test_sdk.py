@@ -1,21 +1,18 @@
 from aria_sdk import ARIAClient
 import os
 
+# Initialize the ARIA client
 client = ARIAClient(
-    base_url="http://127.0.0.1:3001",
+    base_url=os.environ.get("ARIA_BASE_URL", "http://127.0.0.1:3001"),
     api_key=os.environ.get("ARIA_API_KEY", "your-api-key-here"),
-    agent_name="Agente Final",
+    agent_name="Test Agent",
     scope=["send:email"],
 )
 
-# Forzamos el bypass de auth temporalmente para probar
-import requests
-
-res = requests.post(
-    "http://127.0.0.1:3001/v1/agents",
-    json={"name": "Agente Final", "scope": ["send:email"]},
-    headers={
-        "Authorization": f"Bearer {os.environ.get('ARIA_API_KEY', 'your-api-key-here')}"
-    },
-)
-print("Respuesta cruda de ARIA:", res.status_code, res.text)
+# Test registration using SDK method
+try:
+    did = client.register()
+    print("Agent registered successfully!")
+    print(f"DID: {did}")
+except Exception as e:
+    print(f"Registration failed: {e}")

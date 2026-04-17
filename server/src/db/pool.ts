@@ -7,18 +7,16 @@ if (!process.env.DATABASE_URL) {
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   
-  // ESCALABILIDAD: Aumentamos el pool para soportar picos del simulador.
-  // 50 es un número muy seguro para Node.js sin saturar PostgreSQL.
+  // Scale: Allow up to 50 connections to handle load spikes without saturating PostgreSQL.
   max: 50, 
   
-  // Si un proceso se queda "pegado" por un error de red, lo matamos a los 10 segundos.
-  // Antes no había límite, un bug podría secuestrar una conexión para siempre.
+  // Kill stuck queries after 10 seconds to prevent connection leaks.
   statement_timeout: 10_000, 
   
-  // Cierra conexiones que no se usen en 30 segundos (para no gastar RAM innecesaria).
+  // Close idle connections after 30 seconds to conserve memory.
   idleTimeoutMillis: 30_000, 
   
-  // Si PostgreSQL está caído, no esperamos 5 segundos, fallamos rápido (2 seg).
+  // Fail fast if database is down (2 second timeout).
   connectionTimeoutMillis: 2000,
   
   // Railway requires SSL with relaxed verification
@@ -28,9 +26,8 @@ export const pool = new Pool({
 });
 
 pool.on("error", (err) => {
-  // Si una conexión inactiva muere (ej. el servidor de DB se reinició),
-  // esto evita que crashee todo el proceso de Node.js.
-  console.error("[db] Idle pool error (conexión perdida):", err.message);
+  // Prevent process crash when idle connection dies (e.g., DB restart).
+  console.error("[db] Idle pool error:", err.message);
 });
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
@@ -53,8 +50,8 @@ export async function transaction<T>(
     await client.query("ROLLBACK");
     throw err;
   } finally {
-    // CRÍTICO: Esto asegura que la conexión vuelva al pool pase lo que pase.
-    // Si falta este finally, ARIA se quedaría sin conexiones en 10 segundos.
+    // Critical: Return connection to pool regardless of success/failure.
+    // Without this, ARIA would run out of connections after 10 seconds.
     client.release();
   }
 }

@@ -20,10 +20,10 @@ interface CacheEntry {
 
 const keyCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
-// SEGURIDAD: Limitar el tamaño del caché para evitar Memory Leaks (máx 10,000 claves únicas)
+// SECURITY: Limit cache size to prevent Memory Leaks (max 10,000 keys)
 const MAX_CACHE_SIZE = 10_000; 
 
-// FUNCIÓN AUXILIAR para limpiar claves viejas del caché
+// HELPER FUNCTION to clean expired keys from cache
 function cleanExpiredCache(): void {
   const now = Date.now();
   for (const [key, entry] of keyCache.entries()) {
@@ -66,7 +66,7 @@ export async function requireApiKey(
     if (fastResult.rows[0]) {
       const row = fastResult.rows[0]!;
       if (await bcrypt.compare(key, row.key_hash)) {
-        // Manejo del tamaño del caché
+        // Cache size management
         if (keyCache.size >= MAX_CACHE_SIZE) cleanExpiredCache();
         
         keyCache.set(key, { id: row.id, email: row.owner_email, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -75,13 +75,13 @@ export async function requireApiKey(
         next();
         return;
       }
-      // Si el hash SHA256 existe pero el bcrypt falla, es un ataque. No seguimos buscando.
+      // If SHA256 exists but bcrypt fails, it's an attack. Stop searching.
       res.status(401).json({ error: "Invalid API key", code: "INVALID_API_KEY" });
       return;
     }
 
-    // Slow path — O(n) PERO CON LÍMITE DE SEGURIDAD.
-    // Solo buscamos en claves legacy si NO tienen el hash nuevo, y limitamos a 50 para evitar DoS.
+    // Slow path — O(n) BUT WITH SECURITY LIMIT.
+    // Only search legacy keys if they don't have the new hash, limit to 50 to prevent DoS.
     const legacyResult = await query<{ id: string; key_hash: string; owner_email: string }>(
       "SELECT id, key_hash, owner_email FROM api_keys WHERE key_sha256 IS NULL AND revoked_at IS NULL LIMIT 50",
     );

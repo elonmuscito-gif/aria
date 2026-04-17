@@ -58,8 +58,8 @@ CREATE INDEX idx_events_recorded_at ON events (recorded_at DESC);
 CREATE INDEX idx_events_outcome     ON events (outcome);
 CREATE INDEX idx_events_action      ON events (action);
 
--- 🚀 COVERING INDEX: Hace que el cálculo de reputación en reputation.ts sea instantáneo.
--- Al incluir el agent_id y el outcome en el mismo índice, Postgres no necesita leer la tabla real.
+-- COVERING INDEX: Makes reputation calculation in reputation.ts instant.
+-- By including agent_id and outcome in the same index, Postgres doesn't need to read the actual table.
 CREATE INDEX idx_events_agent_outcome ON events (agent_id, outcome);
 
 CREATE TABLE anomalies (
@@ -71,5 +71,5 @@ CREATE TABLE anomalies (
   acknowledged BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Índice arreglado
+-- Fixed index
 CREATE INDEX idx_anomalies_agent_id ON anomalies (agent_id);

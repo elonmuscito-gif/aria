@@ -99,23 +99,23 @@ COUNT(*) FILTER (WHERE (meta->>'hardware_conflict')::boolean = true) AS hardware
      newScopeViolations, newHardwareConflicts, successRate],
   );
 
-  // --- EL CEREBRO: CÁLCULO DE PUNTUACIÓN FINAL ---
-  // 1. Éxito vale +1 punto
+  // --- THE BRAIN: FINAL SCORE CALCULATION ---
+  // 1. Success adds +1 point
   const successPoints = newSuccess;
   
-  // 2. Errores normales restan -1 (Perdonables)
+  // 2. Normal errors subtract -1 (Forgivable)
   const errorPoints = newErrors * -1;
   
-  // 3. Anomalías de scope restan -5 (Peligro)
+  // 3. Scope anomalies subtract -5 (Danger)
   const anomalyPoints = newAnomalies * -5;
   
-  // 4. Crímenes capitales (Hardware o Firmas falsas) restan -100 (Casi la muerte)
+  // 4. Capital crimes (Hardware or Fake signatures) subtract -100 (Near death)
   const criticalPoints = (newScopeViolations + newHardwareConflicts) * -100;
 
-  // El puntaje no puede ser menor a 0 ni mayor a 100
+  // Score cannot be less than 0 or greater than 100
   const finalScore = Math.max(0, Math.min(100, successPoints + errorPoints + anomalyPoints + criticalPoints));
 
-  // --- EL TRACTOR: Sincronizar con la mesa pública para la web ---
+  // --- THE TRACTOR: Sync to public table for the web ---
   syncToPublicTable(agentId, finalScore).catch(() => {});
 }
 

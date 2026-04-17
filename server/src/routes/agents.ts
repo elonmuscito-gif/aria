@@ -52,14 +52,14 @@ agentsRouter.post("/", async (req, res) => {
     const shareA = Buffer.from(shares[0]!);
     const shareB = Buffer.from(shares[1]!);
 
-    // CORRECCIÓN DE FLUJO CRIPTOGRÁFICO:
-    // 1. El servidor guarda el partialAKey derivado, NO el shareA crudo.
-    // 2. Así, en events.ts solo hará HMAC normal, sin derivar de nuevo.
-    const partialAKey = Buffer.from(
-      hkdfSync("sha256", shareA, Buffer.alloc(0), "dts_partial_a_v2", 32) as ArrayBuffer,
-    );
+// CRYPTOGRAPHIC FLOW FIX:
+// 1. Server stores derived partialAKey, NOT raw shareA.
+// 2. This allows events.ts to do normal HMAC without deriving again.
+const partialAKey = Buffer.from(
+  hkdfSync("sha256", shareA, Buffer.alloc(0), "dts_partial_a_v2", 32) as ArrayBuffer,
+);
 
-    hmacKey = partialAKey.toString("hex"); // <-- Ahora la DB guarda la llave derivada
+hmacKey = partialAKey.toString("hex"); // Database stores the derived key
     signingVersion = 2;
     secretHash = await bcrypt.hash(shareB.toString("hex"), 10);
     
@@ -182,11 +182,11 @@ agentsRouter.get("/:did", async (req, res) => {
 
   const row = result.rows[0]!;
 
-  // SEGURIDAD DEFENSIVA: "Whitelist" en lugar de "Blacklist"
-  // En lugar de intentar borrar las claves peligrosas una por una,
-  // extraemos SOLO las claves que sabemos 100% que son seguras de mostrar.
-  const safeMeta: Record<string, unknown> = {};
-  const ALLOWED_META_KEYS = ["simulated", "version", "environment", "region"]; // Añade aquí las que consideres públicas
+// DEFENSIVE SECURITY: Whitelist instead of Blacklist
+// Instead of trying to block dangerous keys one by one,
+// we extract ONLY the keys that are 100% safe to display.
+const safeMeta: Record<string, unknown> = {};
+const ALLOWED_META_KEYS = ["simulated", "version", "environment", "region"]; // Add public keys here
 
   if (row.meta && typeof row.meta === "object") {
     for (const key of Object.keys(row.meta)) {

@@ -1,19 +1,19 @@
 import { query } from "../db/pool.js";
 
-// Límite de seguridad: Un agiente específico no puede generar más de 100 anomalías almacenadas.
-// Si supera las 100, las nuevas se ignoran. Esto evita que un atacante nos llene el disco duro.
+// Security limit: A specific agent cannot generate more than 100 stored anomalies.
+// If it exceeds 100, new ones are ignored. This prevents disk fill-up attacks.
 const MAX_ANOMALIES_PER_AGENT = 100;
 
 export async function recordAnomaly(params: {
   agentId: string;
   eventId: string;
   action: string;
-  type: string; // ej: "hardware_conflict", "scope_violation", "rate_limit_exceeded"
+  type: string; // e.g: "hardware_conflict", "scope_violation", "rate_limit_exceeded"
 }) {
   const { agentId, eventId, action, type } = params;
 
   try {
-    // 1. Verificar cuántas anomalías tiene este agente para evitar el DoS de disco
+    // 1. Check how many anomalies this agent has to prevent disk DoS
     const countResult = await query<{ count: string }>(
       `SELECT COUNT(*) as count FROM anomalies WHERE agent_id = $1`,
       [agentId],
@@ -22,13 +22,13 @@ export async function recordAnomaly(params: {
     const currentCount = parseInt(countResult.rows[0]?.count || "0", 10);
 
     if (currentCount >= MAX_ANOMALIES_PER_AGENT) {
-      // El agente ya tiene demasiadas anomalías registradas. 
-      // No guardamos más para proteger el disco duro de ARIA.
-      // El evento original de todas formas ya quedó guardado en la tabla 'events' con su meta.
+      // Agent already has too many anomalies recorded.
+      // Skip to protect ARIA's disk.
+      // The original event is already stored in the 'events' table with its meta.
       return;
     }
 
-    // 2. Si tenemos espacio, guardamos la anomalía
+    // 2. If we have space, record the anomaly
     await query(
       `INSERT INTO anomalies (event_id, agent_id, action)
        VALUES ($1, $2, $3)`,
@@ -37,14 +37,14 @@ export async function recordAnomaly(params: {
     
     console.warn(`[anomaly-detector] Recorded ${type} for agent ${agentId}`);
   } catch (err) {
-    // Si falla la inserción en la tabla de anomalías, NO debe tirar todo el servidor.
-    // El evento original ya se guardó, la vida continúa.
+    // If anomaly insertion fails, it should NOT crash the server.
+    // The original event was already saved, life goes on.
     console.error("[anomaly-detector] Failed to record anomaly (non-critical):", err instanceof Error ? err.message : String(err));
   }
 }
 
-// FUNCIÓN DE LIMPIEZA: Para ejecutarla mediante un "Cron Job" una vez al mes
-// Borra anomalías reconocidas o mayores a 30 días para mantener la base de datos ligera
+// CLEANUP FUNCTION: Run via Cron Job once a month
+// Delete acknowledged or older than 30 days to keep the database lightweight
 export async function cleanupOldAnomalies() {
   try {
     const result = await query(
