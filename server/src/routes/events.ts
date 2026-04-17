@@ -154,7 +154,7 @@ eventsRouter.post("/", async (req, res) => {
         eventId: event.eventId,
         agentDid: event.agentDid,
       });
-      return res.status(404).json({ error: "Agent not found", code: "AGENT_NOT_FOUND" });
+      return res.status(404).json({ error: "Invalid request", code: "AGENT_NOT_FOUND" });
     }
     if (err instanceof Error && err.message === "DUPLICATE_EVENT") {
       logEvent("warn", "Single event rejected because it is duplicated", {
@@ -162,7 +162,7 @@ eventsRouter.post("/", async (req, res) => {
         eventId: event.eventId,
         agentDid: event.agentDid,
       });
-      return res.status(409).json({ error: "Event already recorded", code: "DUPLICATE_EVENT" });
+      return res.status(409).json({ error: "Invalid request", code: "DUPLICATE_EVENT" });
     }
     logEvent("error", "Unexpected error during single event ingestion", {
       apiKeyId: req.apiKeyId,
@@ -207,7 +207,7 @@ eventsRouter.post("/batch", async (req, res) => {
   );
 
   if (!agentLookup.rows[0]) {
-    return res.status(404).json({ error: "Agent not found for batch", code: "AGENT_NOT_FOUND" });
+    return res.status(404).json({ error: "Invalid request", code: "AGENT_NOT_FOUND" });
   }
 
   const row = agentLookup.rows[0]!;

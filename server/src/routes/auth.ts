@@ -32,7 +32,7 @@ authRouter.post("/register", async (req, res) => {
     );
 
     if (existing.rows[0]) {
-      return res.status(409).json({ error: "Email already registered", code: "EMAIL_EXISTS" });
+      return res.status(409).json({ error: "Invalid request", code: "EMAIL_EXISTS" });
     }
 
     // Hash password
@@ -46,7 +46,7 @@ authRouter.post("/register", async (req, res) => {
 
     const userRow = userResult.rows[0];
     if (!userRow) {
-      return res.status(500).json({ error: "Failed to create user", code: "CREATE_USER_FAILED" });
+      return res.status(500).json({ error: "Service unavailable", code: "CREATE_USER_FAILED" });
     }
     const userId = userRow.id;
 
@@ -66,7 +66,7 @@ authRouter.post("/register", async (req, res) => {
     });
   } catch (e) {
     console.error("[auth] Register error:", e);
-    res.status(500).json({ error: "Registration failed", code: "REGISTER_ERROR" });
+    res.status(500).json({ error: "Service unavailable", code: "REGISTER_ERROR" });
   }
 });
 
@@ -88,7 +88,7 @@ authRouter.post("/login", async (req, res) => {
     );
 
     if (!result.rows[0]) {
-      return res.status(401).json({ error: "Invalid credentials", code: "INVALID_CREDENTIALS" });
+      return res.status(401).json({ error: "Invalid request", code: "INVALID_CREDENTIALS" });
     }
 
     const user = result.rows[0]!;
@@ -96,7 +96,7 @@ authRouter.post("/login", async (req, res) => {
     // Verify password
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      return res.status(401).json({ error: "Invalid credentials", code: "INVALID_CREDENTIALS" });
+      return res.status(401).json({ error: "Invalid request", code: "INVALID_CREDENTIALS" });
     }
 
     // Update last_login
@@ -116,7 +116,7 @@ authRouter.post("/login", async (req, res) => {
     );
 
     if (!apiKeysResult.rows[0]) {
-      return res.status(500).json({ error: "No API key found", code: "NO_API_KEY" });
+      return res.status(500).json({ error: "Invalid request", code: "NO_API_KEY" });
     }
 
     // Generate a new API key for this login session
@@ -135,7 +135,7 @@ authRouter.post("/login", async (req, res) => {
     });
   } catch (e) {
     console.error("[auth] Login error:", e);
-    res.status(500).json({ error: "Login failed", code: "LOGIN_ERROR" });
+    res.status(500).json({ error: "Service unavailable", code: "LOGIN_ERROR" });
   }
 });
 
@@ -148,12 +148,12 @@ authRouter.get("/me", requireApiKey, async (req, res) => {
     );
 
     if (!result.rows[0]) {
-      return res.status(404).json({ error: "User not found", code: "USER_NOT_FOUND" });
+      return res.status(404).json({ error: "Invalid request", code: "USER_NOT_FOUND" });
     }
 
     res.json({ user: result.rows[0] });
   } catch (e) {
     console.error("[auth] Me error:", e);
-    res.status(500).json({ error: "Failed to get user", code: "ME_ERROR" });
+    res.status(500).json({ error: "Service unavailable", code: "ME_ERROR" });
   }
 });

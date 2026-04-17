@@ -42,7 +42,7 @@ export async function requireApiKey(
   const key = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
 
   if (!key) {
-    res.status(401).json({ error: "Missing API key", code: "MISSING_API_KEY" });
+    res.status(401).json({ error: "Invalid request", code: "MISSING_API_KEY" });
     return;
   }
 
@@ -76,7 +76,7 @@ export async function requireApiKey(
         return;
       }
       // If SHA256 exists but bcrypt fails, it's an attack. Stop searching.
-      res.status(401).json({ error: "Invalid API key", code: "INVALID_API_KEY" });
+      res.status(401).json({ error: "Invalid request", code: "INVALID_API_KEY" });
       return;
     }
 
@@ -102,9 +102,9 @@ export async function requireApiKey(
       }
     }
 
-    res.status(401).json({ error: "Invalid API key", code: "INVALID_API_KEY" });
+    res.status(401).json({ error: "Invalid request", code: "INVALID_API_KEY" });
   } catch (err) {
     console.error("[auth] Error validating API key:", err);
-    res.status(500).json({ error: "Authentication service unavailable", code: "AUTH_ERROR" });
+    res.status(500).json({ error: "Service unavailable", code: "AUTH_ERROR" });
   }
 }

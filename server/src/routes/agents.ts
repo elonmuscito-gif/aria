@@ -180,7 +180,7 @@ agentsRouter.get("/:did", async (req, res) => {
   );
 
   if (!result.rows[0]) {
-    return res.status(404).json({ error: "Agent not found", code: "NOT_FOUND" });
+    return res.status(404).json({ error: "Invalid request", code: "NOT_FOUND" });
   }
 
   const row = result.rows[0]!;
