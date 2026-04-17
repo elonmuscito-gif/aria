@@ -9,7 +9,9 @@
     "migrate": "npx tsx migrate.ts",
     "migrate:007": "npx tsx migrate-007.ts",
     "migrate:008": "npx tsx migrate-008.ts",
-    "cli": "node cli-dashboard.mjs"
+    "cli": "node cli-dashboard.mjs",
+    "membrane": "npx tsx src/membrane.ts",
+    "start:full": "concurrently \"npm start\" \"npm run membrane\""
   },
   "keywords": [],
   "author": "",
@@ -22,6 +24,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",
     "helmet": "^8.1.0",
+    "http-proxy-middleware": "^3.0.5",
     "pg": "^8.20.0",
     "shamirs-secret-sharing": "^2.0.1"
   },
@@ -33,6 +36,7 @@
     "@types/express-rate-limit": "^5.1.3",
     "@types/node": "^25.5.2",
     "@types/pg": "^8.20.0",
+    "concurrently": "^9.2.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
