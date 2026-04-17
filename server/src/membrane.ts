@@ -103,9 +103,28 @@ app.use(
   })
 );
 
-app.listen(MEMBRANE_PORT, () => {
-  console.log(`[membrane] ARIA Membrane running on port ${MEMBRANE_PORT}`);
-  console.log(`[membrane] Proxying to internal server on port ${INTERNAL_PORT}`);
-});
+async function waitForServer(url: string, retries = 10): Promise<void> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return;
+    } catch {}
+    console.log(`[membrane] Waiting for internal server... (${i + 1}/${retries})`);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error("[membrane] Internal server not available");
+}
+
+waitForServer(`http://localhost:${INTERNAL_PORT}/health`)
+  .then(() => {
+    console.log("[membrane] Internal server ready");
+    app.listen(MEMBRANE_PORT, () => {
+      console.log(`[membrane] ARIA Membrane running on port ${MEMBRANE_PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
 
 export default app;
