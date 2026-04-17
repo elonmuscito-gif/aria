@@ -49,7 +49,8 @@ if (!SETUP_KEY) {
   process.exit(1);
 }
 
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ contentSecurityPolicy: false, xPoweredBy: false }));
+app.disable("x-powered-by");
 app.use(cors());
 
 app.use(express.json({ limit: "1mb" }));
