@@ -4,8 +4,8 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
 const app = express();
-const INTERNAL_PORT = parseInt(process.env.PORT ?? "3001");
-const MEMBRANE_PORT = parseInt(process.env.MEMBRANE_PORT ?? "8080");
+const INTERNAL_PORT = 3001;
+const MEMBRANE_PORT = parseInt(process.env.PORT ?? "8080");
 const ARIA_INTERNAL = `http://localhost:${INTERNAL_PORT}`;
 
 const scanningIPs = new Map<string, number>();

@@ -25,7 +25,7 @@ process.on("unhandledRejection", (reason) => {
 
 // 3. CONFIGURACIÓN DE EXPRESS
 const app = express();
-const PORT = process.env.PORT ?? 3001;
+const PORT = 3001;
 
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
