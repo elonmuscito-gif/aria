@@ -1,13 +1,38 @@
 import { Router } from "express";
 import { randomUUID, createHash } from "crypto";
 import bcrypt from "bcrypt";
+import rateLimit from "express-rate-limit";
 import { query } from "../db/pool.js";
 import { requireApiKey } from "../middleware/auth.js";
 
 export const authRouter = Router();
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Try again later.", code: "RATE_LIMITED" },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Try again later.", code: "RATE_LIMITED" },
+});
+
+const setupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Try again later.", code: "RATE_LIMITED" },
+});
+
 // POST /v1/auth/register
-authRouter.post("/register", async (req, res) => {
+authRouter.post("/register", registerLimiter, async (req, res) => {
   const { email, password, name } = req.body as {
     email?: string;
     password?: string;
@@ -71,7 +96,7 @@ authRouter.post("/register", async (req, res) => {
 });
 
 // POST /v1/auth/login
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body as {
     email?: string;
     password?: string;

@@ -35,6 +35,14 @@ const apiLimiter = rateLimit({
   message: 'Too many requests from your network, please try again later.',
 });
 
+const setupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Try again later.", code: "RATE_LIMITED" },
+});
+
 const SETUP_KEY = process.env.SETUP_KEY;
 if (!SETUP_KEY) {
   console.error("[startup] FATAL: SETUP_KEY env variable is required");
@@ -66,7 +74,7 @@ app.use((req, _res, next) => {
 });
 
 // 4. RUTA PÚBLICA DE SETUP (Chicken-and-Egg)
-app.post("/v1/setup", async (req, res) => {
+app.post("/v1/setup", setupLimiter, async (req, res) => {
   const { owner_email, setup_key, name, scope } = req.body as Record<string, unknown>;
   
   if (setup_key !== SETUP_KEY) {
