@@ -22,11 +22,19 @@ agentsRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: "name is required", code: "INVALID_NAME" });
   }
 
+  if (name.trim().length > 100) {
+    return res.status(400).json({ error: "Field too long: name", code: "VALIDATION_ERROR" });
+  }
+
   if (!Array.isArray(scope) || scope.length === 0) {
     return res.status(400).json({ error: "scope must be a non-empty array", code: "INVALID_SCOPE" });
   }
 
-  if (scope.some((s) => typeof s !== "string" || !/^[a-z]+:[a-z_]+$/.test(s))) {
+  if (scope.length > 20) {
+    return res.status(400).json({ error: "Field too long: scope", code: "VALIDATION_ERROR" });
+  }
+
+  if (scope.some((s) => typeof s !== "string" || s.length > 50 || !/^[a-z]+:[a-z_]+$/.test(s))) {
     return res.status(400).json({
       error: "Each scope action must follow the pattern verb:resource (e.g. send:email)",
       code: "INVALID_SCOPE_FORMAT",

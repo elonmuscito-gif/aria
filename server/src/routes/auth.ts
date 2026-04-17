@@ -44,9 +44,18 @@ authRouter.post("/register", registerLimiter, async (req, res) => {
     return res.status(400).json({ error: "Valid email required", code: "INVALID_EMAIL" });
   }
 
-  // Validate password (min 8 chars)
-  if (!password || typeof password !== "string" || password.length < 8) {
+  if (email.length > 254) {
+    return res.status(400).json({ error: "Field too long: email", code: "VALIDATION_ERROR" });
+  }
+
+  // Validate password (min 8, max 128)
+  if (!password || typeof password !== "string" || password.length < 8 || password.length > 128) {
     return res.status(400).json({ error: "Password must be at least 8 characters", code: "INVALID_PASSWORD" });
+  }
+
+  // Validate name if provided
+  if (name && typeof name === "string" && name.length > 100) {
+    return res.status(400).json({ error: "Field too long: name", code: "VALIDATION_ERROR" });
   }
 
   try {
@@ -104,6 +113,10 @@ authRouter.post("/login", loginLimiter, async (req, res) => {
 
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password required", code: "MISSING_CREDENTIALS" });
+  }
+
+  if (email.length > 254 || password.length > 128) {
+    return res.status(400).json({ error: "Field too long: email", code: "VALIDATION_ERROR" });
   }
 
   try {
