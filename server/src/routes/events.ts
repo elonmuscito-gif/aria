@@ -14,6 +14,7 @@ const SENSITIVE_META_FIELDS = [
   'partial_b',
   'partialAKey',
   'rate_limit_exceeded',
+  'dts_share_c',
 ];
 
 function sanitizeMeta(meta: Record<string, unknown> | null) {
@@ -95,6 +96,8 @@ function determineSignatureValidity(
   event: IncomingEvent,
   hmacKey: string | null,
   signingVersion: number,
+  storedShareC: string | null,
+  eventFp: string | null,
   context: AgentSignatureContext,
 ): boolean {
   if (hmacKey === null) {
@@ -103,6 +106,23 @@ function determineSignatureValidity(
   }
 
   if (signingVersion === 2) {
+    if (storedShareC && eventFp) {
+      const derivedShareC = Buffer.from(
+        hkdfSync(
+          "sha256",
+          Buffer.from(eventFp, "hex"),
+          Buffer.alloc(0),
+          "dts_share_c_v1",
+          32
+        ) as ArrayBuffer
+      ).toString("hex");
+
+      if (derivedShareC !== storedShareC) {
+        logEvent("warn", "DTS ShareC verification failed: hardware fingerprint mismatch", context);
+        return false;
+      }
+    }
+
     const signatureValid = verifySignatureV2(event, hmacKey);
     if (!signatureValid) {
       logEvent("warn", "DTS signature verification failed: XOR(partial_A, partial_B) does not match event.signature", context);
@@ -214,6 +234,7 @@ eventsRouter.post("/batch", async (req, res) => {
   const agentId = row.id;
   const decryptedHmacKey = row.hmac_key ? decryptSecret(row.hmac_key) : null;
   const agentFp = typeof row.meta?.hardwareFingerprint === "string" ? row.meta.hardwareFingerprint : null;
+  const storedShareC = typeof row.meta?.dts_share_c === "string" ? row.meta.dts_share_c : null;
 
   const validatedEvents: Array<{ event: typeof events[number]; serverWithinScope: boolean; signatureValid: boolean; finalMeta: Record<string, unknown> | null }> = [];
 
@@ -225,7 +246,8 @@ eventsRouter.post("/batch", async (req, res) => {
     }
 
     const serverWithinScope = row.scope.includes(event.action);
-    const signatureValid = determineSignatureValidity(event, decryptedHmacKey, row.signing_version, {
+    const eventFp = event.meta && typeof event.meta.hardwareFingerprint === "string" ? event.meta.hardwareFingerprint : null;
+    const signatureValid = determineSignatureValidity(event, decryptedHmacKey, row.signing_version, storedShareC, eventFp, {
       apiKeyId: req.apiKeyId,
       eventId: event.eventId,
       agentDid: event.agentDid,
@@ -469,6 +491,8 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void
   const { id: agentId, scope, hmac_key: rawHmacKey, meta: agentMeta, signing_version: signingVersion } = agent.rows[0]!;
   const decryptedHmacKey = rawHmacKey ? decryptSecret(rawHmacKey) : null;
   const serverWithinScope = scope.includes(event.action);
+  const storedShareC = typeof agentMeta?.dts_share_c === "string" ? agentMeta.dts_share_c : null;
+  const eventFp = event.meta && typeof event.meta.hardwareFingerprint === "string" ? event.meta.hardwareFingerprint : null;
   if (event.withinScope && !serverWithinScope) {
     logEvent("warn", "Scope conflict: agent reported withinScope=true but action is not in declared scope", {
       apiKeyId,
@@ -477,7 +501,7 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void
       action: event.action,
     });
   }
-  const signatureValid = determineSignatureValidity(event, decryptedHmacKey, signingVersion, {
+  const signatureValid = determineSignatureValidity(event, decryptedHmacKey, signingVersion, storedShareC, eventFp, {
     apiKeyId,
     eventId: event.eventId,
     agentDid: event.agentDid,

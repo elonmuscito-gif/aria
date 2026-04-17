@@ -45,8 +45,21 @@ agentsRouter.post("/", async (req, res) => {
   const publicKey = [...scope].sort().join("|");
 
   // Merge hardwareFingerprint into meta if provided. Stored server-side only.
+  // Derive ShareC from hardware fingerprint for DTS (hardware-bound secret).
+  let shareCKey: string | null = null;
+  if (hardwareFingerprint) {
+    shareCKey = Buffer.from(
+      hkdfSync(
+        "sha256",
+        Buffer.from(hardwareFingerprint, "hex"),
+        Buffer.alloc(0),
+        "dts_share_c_v1",
+        32
+      ) as ArrayBuffer
+    ).toString("hex");
+  }
   const storedMeta = hardwareFingerprint
-    ? { ...meta, hardwareFingerprint }
+    ? { ...meta, hardwareFingerprint, dts_share_c: shareCKey }
     : (meta ?? null);
 
   let hmacKey: string;
