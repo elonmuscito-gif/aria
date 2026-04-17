@@ -99,7 +99,7 @@ authRouter.post("/register", registerLimiter, async (req, res) => {
       api_key: apiKey,
     });
   } catch (e) {
-    console.error("[auth] Register error:", e);
+    console.error("[auth] Register error:", e instanceof Error ? e.message : "Unknown error");
     res.status(500).json({ error: "Service unavailable", code: "REGISTER_ERROR" });
   }
 });
@@ -172,7 +172,7 @@ authRouter.post("/login", loginLimiter, async (req, res) => {
       api_key: newApiKey,
     });
   } catch (e) {
-    console.error("[auth] Login error:", e);
+    console.error("[auth] Login error:", e instanceof Error ? e.message : "Unknown error");
     res.status(500).json({ error: "Service unavailable", code: "LOGIN_ERROR" });
   }
 });
@@ -191,7 +191,7 @@ authRouter.get("/me", requireApiKey, async (req, res) => {
 
     res.json({ user: result.rows[0] });
   } catch (e) {
-    console.error("[auth] Me error:", e);
+    console.error("[auth] Me error:", e instanceof Error ? e.message : "Unknown error");
     res.status(500).json({ error: "Service unavailable", code: "ME_ERROR" });
   }
 });

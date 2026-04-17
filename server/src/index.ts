@@ -132,7 +132,7 @@ app.post("/v1/setup", setupLimiter, async (req, res) => {
       message: "Setup complete. Use api_key in Authorization header."
     });
   } catch(e) {
-    console.error("[setup] DB error checking existing key:", e);
+    console.error("[setup] DB error checking existing key:", e instanceof Error ? e.message : "Unknown error");
     return res.status(503).json({ 
       error: "Service temporarily unavailable", 
       code: "DB_ERROR" 
@@ -169,7 +169,7 @@ app.post("/v1/api-keys", requireApiKey, async (req, res) => {
       created_at: new Date().toISOString() 
     });
   } catch (e) {
-    console.error("[api-keys] Error:", e);
+    console.error("[api-keys] Error:", e instanceof Error ? e.message : "Unknown error");
     res.status(500).json({ error: "Failed to create API key", code: "CREATE_KEY_ERROR" });
   }
 });
@@ -201,7 +201,7 @@ app.post("/v1/api-keys/rotate", requireApiKey, async (req, res) => {
       message: "Old key revoked" 
     });
   } catch (e) {
-    console.error("[api-keys] Rotate error:", e);
+    console.error("[api-keys] Rotate error:", e instanceof Error ? e.message : "Unknown error");
     res.status(500).json({ error: "Failed to rotate API key", code: "ROTATE_KEY_ERROR" });
   }
 });
@@ -222,7 +222,6 @@ app.use((_req, res) => {
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("[server] Unhandled error:", err.message);
-  console.error("[server] Stack:", err.stack);
   
   if (err.message === "request entity too large") {
     res.status(413).json({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" });

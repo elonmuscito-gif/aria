@@ -90,7 +90,7 @@ export async function requireApiKey(
       if (await bcrypt.compare(key, row.key_hash)) {
         // Self-heal: write sha256 so this key hits the fast path from now on.
         query("UPDATE api_keys SET key_sha256 = $1 WHERE id = $2", [keySha256, row.id]).catch((err: unknown) => {
-          console.error("[auth] Failed to self-heal key_sha256 for key", row.id, err);
+          console.error("[auth] Failed to self-heal key_sha256:", err instanceof Error ? err.message : "Unknown error");
         });
         
         if (keyCache.size >= MAX_CACHE_SIZE) cleanExpiredCache();
@@ -104,7 +104,7 @@ export async function requireApiKey(
 
     res.status(401).json({ error: "Invalid request", code: "INVALID_API_KEY" });
   } catch (err) {
-    console.error("[auth] Error validating API key:", err);
+    console.error("[auth] Error validating API key:", err instanceof Error ? err.message : "Unknown error");
     res.status(500).json({ error: "Service unavailable", code: "AUTH_ERROR" });
   }
 }
