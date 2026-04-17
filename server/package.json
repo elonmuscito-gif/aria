@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npx tsx src/index.ts",
+    "start": "npx concurrently \"npx tsx src/index.ts\" \"npx tsx src/membrane.ts\"",
     "membrane": "npx tsx src/membrane.ts",
     "migrate": "npx tsx migrate.ts",
     "migrate:007": "npx tsx migrate-007.ts",
