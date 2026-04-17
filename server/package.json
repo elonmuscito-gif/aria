@@ -8,6 +8,7 @@
     "start": "npx tsx src/index.ts",
     "migrate": "npx tsx migrate.ts",
     "migrate:007": "npx tsx migrate-007.ts",
+    "migrate:008": "npx tsx migrate-008.ts",
     "cli": "node cli-dashboard.mjs"
   },
   "keywords": [],

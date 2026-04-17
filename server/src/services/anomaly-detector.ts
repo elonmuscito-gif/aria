@@ -43,14 +43,27 @@ export async function recordAnomaly(params: {
   }
 }
 
-// CLEANUP FUNCTION: Run via Cron Job once a month
-// Delete acknowledged or older than 30 days to keep the database lightweight
+// Archive old or acknowledged anomalies to keep the main table fast. History is never lost.
 export async function cleanupOldAnomalies() {
   try {
-    const result = await query(
-      `DELETE FROM anomalies WHERE acknowledged = true OR detected_at < NOW() - INTERVAL '30 days'`,
+    // Step 1: Copy to archive first
+    await query(
+      `INSERT INTO anomalies_archive 
+        (id, event_id, agent_id, action, reason, detected_at, acknowledged)
+       SELECT id, event_id, agent_id, action, reason, detected_at, acknowledged
+       FROM anomalies
+       WHERE detected_at < NOW() - INTERVAL '90 days'
+          OR acknowledged = true
+       ON CONFLICT (id) DO NOTHING`
     );
-    console.log(`[anomaly-detector] Cleanup: deleted ${result.rowCount} old anomalies`);
+
+    // Step 2: Then delete from main table
+    const result = await query(
+      `DELETE FROM anomalies 
+       WHERE detected_at < NOW() - INTERVAL '90 days'
+          OR acknowledged = true`
+    );
+    console.log(`[anomaly-detector] Archived and deleted ${result.rowCount} old anomalies`);
   } catch (err) {
     console.error("[anomaly-detector] Cleanup failed:", err instanceof Error ? err.message : String(err));
   }
