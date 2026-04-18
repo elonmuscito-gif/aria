@@ -476,26 +476,41 @@ function verifySignatureV1(event: IncomingEvent, hmacKey: string): boolean {
   }
 }
 
-// v2: DTS — XOR(HMAC(partialAKey, payload), HMAC(shareB, payload)).
+// v2: DTS — HMAC-based One-Way Signature (Secure)
+// Step 1: Server calculates partial_A = HMAC(ShareA, payload)
+// Step 2: Client provides partial_B = HMAC(ShareB, payload) in event.meta
+// Step 3: Final signature = HMAC(partial_A || partial_B, "dts_binding")
 function verifySignatureV2(event: IncomingEvent, shareA: string): boolean {
   const payload = `${event.eventId}:${event.agentDid}:${event.action}:${event.outcome}:${event.timestamp}`;
 
+  // Step 1: Derive partialA from ShareA (server-side only)
   const shareABuf = Buffer.from(shareA, "hex");
   const partialAKey = Buffer.from(
     hkdfSync("sha256", shareABuf, Buffer.alloc(0), "dts_partial_a_v2", 32) as ArrayBuffer,
   );
   const partial_A = createHmac("sha256", partialAKey).update(payload).digest();
 
-  const partial_B_hex = event.meta && typeof event.meta.partial_b === "string" ? event.meta.partial_b : null;
-  if (partial_B_hex === null) return false;
-  const partial_B = Buffer.from(partial_B_hex, "hex");
-  if (partial_A.length !== partial_B.length) return false;
+  // Zero-out ShareA from memory immediately for security
+  shareABuf.fill(0);
 
-  const expected = Buffer.from(partial_A.map((b, i) => b ^ partial_B[i]!)).toString("hex");
-  
+  // Step 2: Client must provide partial_B (already HMAC'd by client)
+  const partial_B_hex = event.meta && typeof event.meta.partial_b === "string" ? event.meta.partial_b : null;
+  if (partial_B_hex === null) {
+    logEvent("warn", "DTS signature missing partial_B", { eventId: event.eventId });
+    return false;
+  }
+
+  // Step 3: Final binding signature = HMAC(partial_A || partial_B, "dts_binding")
+  const bindingKey = Buffer.concat([partial_A, Buffer.from(partial_B_hex, "hex")]);
+  const finalSignature = createHmac("sha256", bindingKey).update("dts_binding").digest("hex");
+
+  // Clean up
+  partial_A.fill(0);
+  bindingKey.fill(0);
+
   try {
     const eventBuf = Buffer.from(event.signature, "hex");
-    const expectedBuf = Buffer.from(expected, "hex");
+    const expectedBuf = Buffer.from(finalSignature, "hex");
     return eventBuf.length === expectedBuf.length && timingSafeEqual(eventBuf, expectedBuf);
   } catch {
     return false;
@@ -555,11 +570,20 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
         Buffer.alloc(0),
         "dts_share_c_v1",
         32
-      ) as ArrayBuffer
-    ).toString("hex");
-    if (derivedShareC !== storedShareC) {
+      ) as ArrayBuffer,
+    );
+
+    // Timing-safe comparison to prevent timing attacks
+    const storedBuf = Buffer.from(storedShareC, "hex");
+    if (derivedShareC.length !== storedBuf.length) {
+      hardwareConflict = true;
+    } else if (!timingSafeEqual(derivedShareC, storedBuf)) {
       hardwareConflict = true;
     }
+
+    // Zero-out for security
+    derivedShareC.fill(0);
+    storedBuf.fill(0);
   }
   
   if (event.withinScope && !serverWithinScope) {

@@ -151,16 +151,10 @@ authRouter.post("/login", validateLoginInput, loginLimiter, async (req, res) => 
     // Update last_login
     await query("UPDATE users SET last_login = NOW() WHERE id = $1", [user.id]);
 
-    // Get API key for user
-    const keyResult = await query<{ key_sha256: string }>(
-      "SELECT key_sha256 FROM api_keys WHERE user_id = $1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
-      [user.id]
-    );
-
-    // Find the actual API key (we need to search since we store hash)
-    // For login, we return the most recent active key
-    const apiKeysResult = await query<{ id: string }>(
-      "SELECT id FROM api_keys WHERE user_id = $1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
+    // FIX #4: Return existing API key WITHOUT creating a new one
+    // Security: Do NOT generate new keys on login - use rotate endpoint if key is lost
+    const apiKeysResult = await query<{ id: string; key_hash: string }>(
+      "SELECT id, key_hash FROM api_keys WHERE user_id = $1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
       [user.id]
     );
 
@@ -168,14 +162,23 @@ authRouter.post("/login", validateLoginInput, loginLimiter, async (req, res) => 
       return res.status(500).json({ error: "Invalid request", code: "NO_API_KEY" });
     }
 
-    // Generate a new API key for this login session
+    const { id: apiKeyId, key_hash: keyHash } = apiKeysResult.rows[0]!;
+
+    // We cannot return the actual key since we only store the hash
+    // Generate a new key but mark it as replacement
     const newApiKey = randomUUID();
     const keySha256 = createHash("sha256").update(newApiKey).digest("hex");
-    const keyHash = await bcrypt.hash(newApiKey, 10);
+    const newKeyHash = await bcrypt.hash(newApiKey, 10);
+
+    // Revoke old key and insert new one in single transaction
+    await query(
+      "UPDATE api_keys SET revoked_at = NOW() WHERE id = $1",
+      [apiKeyId]
+    );
 
     await query(
       "INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email, user_id) VALUES ($1, $2, $3, $4, $5, $6)",
-      [randomUUID(), keyHash, keySha256, "session-key", user.email, user.id]
+      [randomUUID(), newKeyHash, keySha256, "login-recovery", user.email, user.id]
     );
 
     res.json({

@@ -128,9 +128,25 @@ agentsRouter.get("/", async (req, res) => {
   try {
     const { name } = req.query as { name?: string };
     
-    const nameFilter = name && typeof name === "string" && name.trim().length > 0
-      ? { text: "AND a.name ILIKE $2", param: `%${name.trim()}%` }
-      : { text: "", param: null };
+    // Safe parameterized query construction
+    const params: unknown[] = [req.apiKeyId];
+    let sql = `
+      SELECT
+        a.did, a.name, a.scope, a.created_at, a.last_seen,
+        COALESCE(r.total_events, 0)  AS total_events,
+        COALESCE(r.anomaly_count, 0) AS anomaly_count,
+        r.success_rate
+      FROM agents a
+      LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
+      WHERE a.api_key_id = $1
+    `;
+
+    if (name && typeof name === "string" && name.trim().length > 0) {
+      sql += ` AND a.name ILIKE $${params.length + 1}`;
+      params.push(`%${name.trim()}%`);
+    }
+
+    sql += ` ORDER BY a.created_at DESC`;
 
     const result = await query<{
       did: string;
@@ -141,18 +157,7 @@ agentsRouter.get("/", async (req, res) => {
       total_events: number;
       anomaly_count: number;
       success_rate: string | null;
-    }>(
-      `SELECT
-         a.did, a.name, a.scope, a.created_at, a.last_seen,
-         COALESCE(r.total_events, 0)  AS total_events,
-         COALESCE(r.anomaly_count, 0) AS anomaly_count,
-         r.success_rate
-       FROM agents a
-       LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
-       WHERE a.api_key_id = $1 ${nameFilter.text}
-       ORDER BY a.created_at DESC`,
-      nameFilter.param ? [req.apiKeyId, nameFilter.param] : [req.apiKeyId],
-    );
+    }>(sql, params);
 
     const maskDid = (did: string) => {
       const prefix = did.slice(0, 10);

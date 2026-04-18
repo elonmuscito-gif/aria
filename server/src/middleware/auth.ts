@@ -58,17 +58,19 @@ export async function requireApiKey(
     return;
   }
 
-  const cached = keyCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) {
-    req.apiKeyId = cached.id;
-    req.ownerEmail = cached.email;
-    next();
-    return;
-  }
-
-  try {
+  // Compute SHA256 immediately
     const keySha256 = createHash("sha256").update(key).digest("hex");
 
+    // FIX #5: Use keySha256 as cache key (NOT raw plaintext) to prevent memory dump attacks
+    const cached = keyCache.get(keySha256);
+    if (cached && cached.expiresAt > Date.now()) {
+      req.apiKeyId = cached.id;
+      req.ownerEmail = cached.email;
+      next();
+      return;
+    }
+
+  try {
     // Fast path — O(1): direct lookup by SHA-256 index.
     const fastResult = await query<{ id: string; key_hash: string; owner_email: string }>(
       "SELECT id, key_hash, owner_email FROM api_keys WHERE key_sha256 = $1 AND revoked_at IS NULL",
@@ -81,7 +83,8 @@ export async function requireApiKey(
         // Cache size management
         if (keyCache.size >= MAX_CACHE_SIZE) cleanExpiredCache();
         
-        keyCache.set(key, { id: row.id, email: row.owner_email, expiresAt: Date.now() + CACHE_TTL_MS });
+        // Store with keySha256 as key (security improvement)
+        keyCache.set(keySha256, { id: row.id, email: row.owner_email, expiresAt: Date.now() + CACHE_TTL_MS });
         req.apiKeyId = row.id;
         req.ownerEmail = row.owner_email;
         next();
@@ -106,7 +109,7 @@ export async function requireApiKey(
         });
         
         if (keyCache.size >= MAX_CACHE_SIZE) cleanExpiredCache();
-        keyCache.set(key, { id: row.id, email: row.owner_email, expiresAt: Date.now() + CACHE_TTL_MS });
+        keyCache.set(keySha256, { id: row.id, email: row.owner_email, expiresAt: Date.now() + CACHE_TTL_MS });
         req.apiKeyId = row.id;
         req.ownerEmail = row.owner_email;
         next();
