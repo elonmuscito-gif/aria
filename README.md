@@ -6,6 +6,12 @@
 
 ARIA is the accountability layer the AI industry is missing. Companies deploy AI agents that act on their behalf — sending emails, processing payments, accessing databases. ARIA makes those agents auditable, verifiable, and trustworthy.
 
+## How it works
+
+1. **Register** your agent with a name and declared scope
+2. **Track** every action with `agent.track()` — ARIA signs and verifies
+3. **Prove** compliance with a cryptographic audit trail
+
 ## Quick Start
 
 ```bash
@@ -61,3 +67,17 @@ BUSL-1.1 — Source available. Commercial use requires agreement.
 ## Stack
 
 Node.js · Express · TypeScript · PostgreSQL · Railway
+
+## Get Started
+
+Create your account and get an API key:
+
+```bash
+curl -X POST https://aria-production-0458.up.railway.app/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@company.com","password":"yourpassword","name":"Your Name"}'
+```
+
+---
+
+Built with ❤️ for the agentic AI economy.
