@@ -15,6 +15,12 @@ export interface AgentConfig {
 export interface TrackResult {
   success: boolean;
   eventId: string;
+  insights?: {
+    scope: { valid: boolean; attempted: string; declared: string[]; message: string };
+    signature: { valid: boolean };
+    rateLimit: { exceeded: boolean; current: number; limit: number; resetsIn: string };
+    trustScore: { impact: number };
+  };
 }
 
 export class ARIAClient {
@@ -87,7 +93,12 @@ export class ARIAClient {
       }),
     });
 
-    return { success: res.ok, eventId };
+    if (!res.ok) {
+      return { success: false, eventId };
+    }
+
+    const data = await res.json() as { accepted: boolean; eventId: string; insights?: TrackResult['insights'] };
+    return { success: data.accepted, eventId: data.eventId, insights: data.insights };
   }
 
   async getAgent(did: string) {

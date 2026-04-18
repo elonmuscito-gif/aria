@@ -49,6 +49,26 @@ function checkRateLimit(agentId: string): boolean {
   return entry.count > RATE_LIMIT_MAX;
 }
 
+function getRateLimitInfo(agentId: string): { exceeded: boolean; current: number; limit: number; resetsIn: string } {
+  const entry = rateLimitMap.get(agentId);
+  const now = Date.now();
+  
+  if (!entry) {
+    return { exceeded: false, current: 0, limit: RATE_LIMIT_MAX, resetsIn: "60s" };
+  }
+  
+  const current = entry.count > RATE_LIMIT_MAX ? entry.count - RATE_LIMIT_MAX : entry.count;
+  const resetsInMs = (entry.windowStart + RATE_LIMIT_WINDOW_MS) - now;
+  const resetsIn = `${Math.ceil(Math.max(0, resetsInMs) / 1000)}s`;
+  
+  return {
+    exceeded: entry.count > RATE_LIMIT_MAX,
+    current,
+    limit: RATE_LIMIT_MAX,
+    resetsIn
+  };
+}
+
 export const eventsRouter = Router();
 
 eventsRouter.use(requireApiKey);
@@ -141,13 +161,39 @@ eventsRouter.post("/", async (req, res) => {
       eventId: event.eventId,
       agentDid: event.agentDid,
     });
-    await ingestEvent(event, req.apiKeyId);
+    const ingestionResult = await ingestEvent(event, req.apiKeyId);
     logEvent("log", "Accepted single event", {
       apiKeyId: req.apiKeyId,
       eventId: event.eventId,
       agentDid: event.agentDid,
     });
-    return res.status(202).json({ accepted: true, eventId: event.eventId });
+
+    const insights = {
+      scope: {
+        valid: ingestionResult.serverWithinScope,
+        attempted: event.action,
+        declared: ingestionResult.scope,
+        message: !ingestionResult.serverWithinScope 
+          ? `Action '${event.action}' is not in declared scope`
+          : `Action '${event.action}' is within declared scope`
+      },
+      signature: {
+        valid: ingestionResult.signatureValid
+      },
+      rateLimit: ingestionResult.rateLimitInfo,
+      trustScore: {
+        impact: !ingestionResult.serverWithinScope ? -100 
+          : event.outcome === 'anomaly' ? -5
+          : event.outcome === 'error' ? -1 
+          : 1
+      }
+    };
+
+    return res.status(202).json({ 
+      accepted: true, 
+      eventId: event.eventId,
+      insights 
+    });
   } catch (err: unknown) {
     if (err instanceof Error && err.message === "AGENT_NOT_FOUND") {
       logEvent("warn", "Single event rejected because agent was not found", {
@@ -468,7 +514,12 @@ function validateEvent(e: Partial<IncomingEvent>): string | null {
   return null;
 }
 
-async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void> {
+async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
+  serverWithinScope: boolean;
+  signatureValid: boolean;
+  scope: string[];
+  rateLimitInfo: ReturnType<typeof getRateLimitInfo>;
+}> {
   logEvent("log", "Looking up agent for single event ingestion", {
     apiKeyId,
     eventId: event.eventId,
@@ -600,4 +651,11 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<void
     eventId: event.eventId,
     agentId,
   });
+
+  return {
+    serverWithinScope,
+    signatureValid,
+    scope: scope,
+    rateLimitInfo: getRateLimitInfo(agentId),
+  };
 }
