@@ -387,7 +387,7 @@ ARIA is a Node.js/Express/TypeScript server that provides a trust and auditing s
 - `PORT` - Server port (default: 3001)
 - `DATABASE_URL` - PostgreSQL connection string (required)
 - `NODE_ENV` - "development" or "production"
-- `SETUP_KEY` - Master key for initial setup (default: "aria-setup-2024")
+- `SETUP_KEY` - Master key for initial setup (required: must be set via environment variable, no default)
 
 ---
 
