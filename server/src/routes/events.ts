@@ -343,65 +343,77 @@ eventsRouter.post("/batch", async (req, res) => {
 });
 
 eventsRouter.get("/", async (req, res) => {
-  const { agentDid, limit = "50", cursor, outcome } = req.query as Record<string, string>;
-  const pageLimit = Math.min(parseInt(limit, 10) || 50, 200);
-  logEvent("log", "Listing events", {
-    apiKeyId: req.apiKeyId,
-    agentDid,
-    requestedLimit: limit,
-    pageLimit,
-    cursor,
-    outcome,
-  });
+  try {
+    const { agentDid, limit = "50", cursor, outcome } = req.query as Record<string, string>;
+    const pageLimit = Math.min(parseInt(limit, 10) || 50, 200);
+    logEvent("log", "Listing events", {
+      apiKeyId: req.apiKeyId,
+      agentDid,
+      requestedLimit: limit,
+      pageLimit,
+      cursor,
+      outcome,
+    });
 
-  let sql = `
-    SELECT e.event_id, e.action, e.outcome, e.within_scope, e.server_within_scope, e.signature_valid,
-           e.duration_ms, e.client_ts, e.error, e.meta,
-           a.did AS agent_did, a.name AS agent_name
-    FROM events e
-    JOIN agents a ON a.id = e.agent_id
-    WHERE a.api_key_id = $1
-  `;
-  const params: unknown[] = [req.apiKeyId];
-  let paramIdx = 2;
+    let sql = `
+      SELECT e.event_id, e.action, e.outcome, e.within_scope, e.server_within_scope, e.signature_valid,
+             e.duration_ms, e.client_ts, e.error, e.meta,
+             a.did AS agent_did, a.name AS agent_name
+      FROM events e
+      JOIN agents a ON a.id = e.agent_id
+      WHERE a.api_key_id = $1
+    `;
+    const params: unknown[] = [req.apiKeyId];
+    let paramIdx = 2;
 
-  if (agentDid) {
-    sql += ` AND a.did = $${paramIdx++}`;
-    params.push(agentDid);
+    if (agentDid) {
+      sql += ` AND a.did = $${paramIdx++}`;
+      params.push(agentDid);
+    }
+
+    if (outcome && ["success", "error", "anomaly"].includes(outcome)) {
+      sql += ` AND e.outcome = $${paramIdx++}`;
+      params.push(outcome);
+    }
+
+    if (cursor) {
+      const cursorDate = new Date(cursor);
+      if (isNaN(cursorDate.getTime())) {
+        return res.status(400).json({ 
+          error: 'Invalid cursor value', 
+          code: 'INVALID_CURSOR' 
+        });
+      }
+      sql += ` AND e.recorded_at < $${paramIdx++}`;
+      params.push(cursorDate);
+    }
+
+    sql += ` ORDER BY e.recorded_at DESC LIMIT $${paramIdx}`;
+    params.push(pageLimit);
+
+    const result = await query(sql, params);
+    logEvent("log", "Listed events successfully", {
+      apiKeyId: req.apiKeyId,
+      resultCount: result.rows.length,
+      pageLimit,
+    });
+
+    const nextCursor =
+      result.rows.length === pageLimit
+        ? (result.rows[result.rows.length - 1] as { client_ts: string }).client_ts
+        : null;
+
+    return res.json({
+      events: result.rows.map((row) => ({
+        ...row,
+        meta: sanitizeMeta(row.meta as Record<string, unknown> | null),
+      })),
+      ...(nextCursor && { nextCursor }),
+    });
+  } catch (err) {
+    console.error('[routes/events] GET / error:', err instanceof Error ? err.message : 'Unknown error');
+    return res.status(500).json({ error: 'Service unavailable', code: 'INTERNAL_ERROR' });
   }
-
-  if (outcome && ["success", "error", "anomaly"].includes(outcome)) {
-    sql += ` AND e.outcome = $${paramIdx++}`;
-    params.push(outcome);
-  }
-
-  if (cursor) {
-    sql += ` AND e.recorded_at < $${paramIdx++}`;
-    params.push(new Date(cursor));
-  }
-
-  sql += ` ORDER BY e.recorded_at DESC LIMIT $${paramIdx}`;
-  params.push(pageLimit);
-
-  const result = await query(sql, params);
-  logEvent("log", "Listed events successfully", {
-    apiKeyId: req.apiKeyId,
-    resultCount: result.rows.length,
-    pageLimit,
-  });
-
-  const nextCursor =
-    result.rows.length === pageLimit
-      ? (result.rows[result.rows.length - 1] as { client_ts: string }).client_ts
-      : null;
-
-  return res.json({
-    events: result.rows.map((row) => ({
-      ...row,
-      meta: sanitizeMeta(row.meta as Record<string, unknown> | null),
-    })),
-    ...(nextCursor && { nextCursor }),
-  });
 });
 
 // v1: classic HMAC-SHA256 with raw secret.

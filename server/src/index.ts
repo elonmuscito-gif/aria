@@ -8,8 +8,8 @@ import bcrypt from "bcrypt";
 import { agentsRouter } from "./routes/agents.js";
 import { eventsRouter } from "./routes/events.js";
 import { authRouter } from "./routes/auth.js";
+import { requireApiKey, invalidateCacheByApiKeyId } from "./middleware/auth.js";
 import { checkHealth, query } from "./db/pool.js";
-import { requireApiKey } from "./middleware/auth.js";
 import rateLimit from 'express-rate-limit';
 
 // 2. MANEJO DE ERRORES CRÍTICOS
@@ -150,7 +150,7 @@ app.use("/v1/events", apiLimiter, eventsRouter);
 app.use("/v1/auth", authRouter);
 
 // ENDPOINT 2: Create new API key
-app.post("/v1/api-keys", requireApiKey, async (req, res) => {
+app.post("/v1/api-keys", apiLimiter, requireApiKey, async (req, res) => {
   const { label } = req.body as { label?: string };
   
   if (!label || typeof label !== "string" || label.trim().length === 0) {
@@ -179,7 +179,7 @@ app.post("/v1/api-keys", requireApiKey, async (req, res) => {
 });
 
 // ENDPOINT 3: Rotate API key
-app.post("/v1/api-keys/rotate", requireApiKey, async (req, res) => {
+app.post("/v1/api-keys/rotate", apiLimiter, requireApiKey, async (req, res) => {
   const { label } = req.body as { label?: string };
   const newLabel = label?.trim() || "rotated-key";
 
@@ -199,6 +199,9 @@ app.post("/v1/api-keys/rotate", requireApiKey, async (req, res) => {
       "UPDATE api_keys SET revoked_at = NOW() WHERE id = $1",
       [req.apiKeyId]
     );
+
+    // Immediately invalidate the old key from cache so it stops working
+    invalidateCacheByApiKeyId(req.apiKeyId);
 
     res.status(201).json({ 
       new_api_key: newKey, 

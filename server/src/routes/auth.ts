@@ -31,32 +31,36 @@ const setupLimiter = rateLimit({
   message: { error: "Too many attempts. Try again later.", code: "RATE_LIMITED" },
 });
 
+function validateRegisterInput(req: import("express").Request, res: import("express").Response, next: import("express").NextFunction): void {
+  const { email, password, name } = req.body as { email?: string; password?: string; name?: string };
+
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    res.status(400).json({ error: "Valid email required", code: "INVALID_EMAIL" });
+    return;
+  }
+  if (email.length > 254) {
+    res.status(400).json({ error: "Field too long: email", code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (!password || typeof password !== "string" || password.length < 8 || password.length > 128) {
+    res.status(400).json({ error: "Password must be at least 8 characters", code: "INVALID_PASSWORD" });
+    return;
+  }
+  if (name && typeof name === "string" && name.length > 100) {
+    res.status(400).json({ error: "Field too long: name", code: "VALIDATION_ERROR" });
+    return;
+  }
+  next();
+}
+
 // POST /v1/auth/register
-authRouter.post("/register", registerLimiter, async (req, res) => {
+authRouter.post("/register", validateRegisterInput, registerLimiter, async (req, res) => {
+  // Validation guaranteed by validateRegisterInput middleware
   const { email, password, name } = req.body as {
-    email?: string;
-    password?: string;
+    email: string;
+    password: string;
     name?: string;
   };
-
-  // Validate email
-  if (!email || typeof email !== "string" || !email.includes("@")) {
-    return res.status(400).json({ error: "Valid email required", code: "INVALID_EMAIL" });
-  }
-
-  if (email.length > 254) {
-    return res.status(400).json({ error: "Field too long: email", code: "VALIDATION_ERROR" });
-  }
-
-  // Validate password (min 8, max 128)
-  if (!password || typeof password !== "string" || password.length < 8 || password.length > 128) {
-    return res.status(400).json({ error: "Password must be at least 8 characters", code: "INVALID_PASSWORD" });
-  }
-
-  // Validate name if provided
-  if (name && typeof name === "string" && name.length > 100) {
-    return res.status(400).json({ error: "Field too long: name", code: "VALIDATION_ERROR" });
-  }
 
   try {
     // Check if user exists
@@ -104,20 +108,27 @@ authRouter.post("/register", registerLimiter, async (req, res) => {
   }
 });
 
-// POST /v1/auth/login
-authRouter.post("/login", loginLimiter, async (req, res) => {
-  const { email, password } = req.body as {
-    email?: string;
-    password?: string;
-  };
+function validateLoginInput(req: import("express").Request, res: import("express").Response, next: import("express").NextFunction): void {
+  const { email, password } = req.body as { email?: string; password?: string };
 
   if (!email || !password) {
-    return res.status(400).json({ error: "Email and password required", code: "MISSING_CREDENTIALS" });
+    res.status(400).json({ error: "Email and password required", code: "MISSING_CREDENTIALS" });
+    return;
   }
-
   if (email.length > 254 || password.length > 128) {
-    return res.status(400).json({ error: "Field too long: email", code: "VALIDATION_ERROR" });
+    res.status(400).json({ error: "Field too long: email", code: "VALIDATION_ERROR" });
+    return;
   }
+  next();
+}
+
+// POST /v1/auth/login
+authRouter.post("/login", validateLoginInput, loginLimiter, async (req, res) => {
+  // Validation guaranteed by validateLoginInput middleware
+  const { email, password } = req.body as {
+    email: string;
+    password: string;
+  };
 
   try {
     const result = await query<{ id: string; email: string; name: string | null; password_hash: string }>(

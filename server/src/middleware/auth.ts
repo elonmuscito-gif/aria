@@ -33,6 +33,18 @@ function cleanExpiredCache(): void {
   }
 }
 
+export function invalidateCachedKey(rawKey: string): void {
+  keyCache.delete(rawKey);
+}
+
+export function invalidateCacheByApiKeyId(apiKeyId: string): void {
+  for (const [key, entry] of keyCache.entries()) {
+    if (entry.id === apiKeyId) {
+      keyCache.delete(key);
+    }
+  }
+}
+
 export async function requireApiKey(
   req: Request,
   res: Response,

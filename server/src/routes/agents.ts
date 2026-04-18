@@ -125,118 +125,124 @@ hmacKey = partialAKey.toString("hex"); // Database stores the derived key
 });
 
 agentsRouter.get("/", async (req, res) => {
-  const { name } = req.query as { name?: string };
-  
-  const nameFilter = name && typeof name === "string" && name.trim().length > 0
-    ? { text: "AND a.name ILIKE $2", param: `%${name.trim()}%` }
-    : { text: "", param: null };
+  try {
+    const { name } = req.query as { name?: string };
+    
+    const nameFilter = name && typeof name === "string" && name.trim().length > 0
+      ? { text: "AND a.name ILIKE $2", param: `%${name.trim()}%` }
+      : { text: "", param: null };
 
-  const result = await query<{
-    did: string;
-    name: string;
-    scope: string[];
-    created_at: string;
-    last_seen: string | null;
-    total_events: number;
-    anomaly_count: number;
-    success_rate: string | null;
-  }>(
-    `SELECT
-       a.did, a.name, a.scope, a.created_at, a.last_seen,
-       COALESCE(r.total_events, 0)  AS total_events,
-       COALESCE(r.anomaly_count, 0) AS anomaly_count,
-       r.success_rate
-     FROM agents a
-     LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
-     WHERE a.api_key_id = $1 ${nameFilter.text}
-     ORDER BY a.created_at DESC`,
-    nameFilter.param ? [req.apiKeyId, nameFilter.param] : [req.apiKeyId],
-  );
+    const result = await query<{
+      did: string;
+      name: string;
+      scope: string[];
+      created_at: string;
+      last_seen: string | null;
+      total_events: number;
+      anomaly_count: number;
+      success_rate: string | null;
+    }>(
+      `SELECT
+         a.did, a.name, a.scope, a.created_at, a.last_seen,
+         COALESCE(r.total_events, 0)  AS total_events,
+         COALESCE(r.anomaly_count, 0) AS anomaly_count,
+         r.success_rate
+       FROM agents a
+       LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
+       WHERE a.api_key_id = $1 ${nameFilter.text}
+       ORDER BY a.created_at DESC`,
+      nameFilter.param ? [req.apiKeyId, nameFilter.param] : [req.apiKeyId],
+    );
 
-  const maskDid = (did: string) => {
-    const prefix = did.slice(0, 10);
-    const suffix = did.slice(-4);
-    return `${prefix}...${suffix}`;
-  };
+    const maskDid = (did: string) => {
+      const prefix = did.slice(0, 10);
+      const suffix = did.slice(-4);
+      return `${prefix}...${suffix}`;
+    };
 
-  const agents = result.rows.map((row) => ({
-    name: row.name,
-    masked_did: maskDid(row.did),
-    scope_summary: Array.isArray(row.scope) && row.scope.length > 0 ? row.scope[0] : "No scope",
-    scope_count: Array.isArray(row.scope) ? row.scope.length : 0,
-    created_at: row.created_at,
-    last_seen: row.last_seen,
-    total_events: row.total_events,
-    anomaly_count: row.anomaly_count,
-    success_rate: row.success_rate,
-  }));
+    const agents = result.rows.map((row) => ({
+      name: row.name,
+      masked_did: maskDid(row.did),
+      scope_summary: Array.isArray(row.scope) && row.scope.length > 0 ? row.scope[0] : "No scope",
+      scope_count: Array.isArray(row.scope) ? row.scope.length : 0,
+      created_at: row.created_at,
+      last_seen: row.last_seen,
+      total_events: row.total_events,
+      anomaly_count: row.anomaly_count,
+      success_rate: row.success_rate,
+    }));
 
-  return res.json({ agents });
+    return res.json({ agents });
+  } catch (err) {
+    console.error('[routes/agents] GET / error:', err instanceof Error ? err.message : 'Unknown error');
+    return res.status(500).json({ error: 'Service unavailable', code: 'INTERNAL_ERROR' });
+  }
 });
 
 agentsRouter.get("/:did", async (req, res) => {
-  const result = await query<{
-    did: string;
-    name: string;
-    scope: string[];
-    created_at: string;
-    last_seen: string | null;
-    meta: Record<string, unknown> | null;
-    total_events: number;
-    success_count: number;
-    error_count: number;
-    anomaly_count: number;
-    success_rate: string | null;
-    top_actions: Array<{ action: string; count: number }> | null;
-  }>(
-    `SELECT
-       a.did, a.name, a.scope, a.created_at, a.last_seen, a.meta,
-       COALESCE(r.total_events, 0)   AS total_events,
-       COALESCE(r.success_count, 0)  AS success_count,
-       COALESCE(r.error_count, 0)    AS error_count,
-       COALESCE(r.anomaly_count, 0)  AS anomaly_count,
-       r.success_rate, r.top_actions
-     FROM agents a
-     LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
-     WHERE a.did = $1 AND a.api_key_id = $2`,
-    [req.params.did, req.apiKeyId],
-  );
+  try {
+    const result = await query<{
+      did: string;
+      name: string;
+      scope: string[];
+      created_at: string;
+      last_seen: string | null;
+      meta: Record<string, unknown> | null;
+      total_events: number;
+      success_count: number;
+      error_count: number;
+      anomaly_count: number;
+      success_rate: string | null;
+      top_actions: Array<{ action: string; count: number }> | null;
+    }>(
+      `SELECT
+         a.did, a.name, a.scope, a.created_at, a.last_seen, a.meta,
+         COALESCE(r.total_events, 0)   AS total_events,
+         COALESCE(r.success_count, 0)  AS success_count,
+         COALESCE(r.error_count, 0)    AS error_count,
+         COALESCE(r.anomaly_count, 0)  AS anomaly_count,
+         r.success_rate, r.top_actions
+       FROM agents a
+       LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
+       WHERE a.did = $1 AND a.api_key_id = $2`,
+      [req.params.did, req.apiKeyId],
+    );
 
-  if (!result.rows[0]) {
-    return res.status(404).json({ error: "Invalid request", code: "NOT_FOUND" });
-  }
+    if (!result.rows[0]) {
+      return res.status(404).json({ error: "Invalid request", code: "NOT_FOUND" });
+    }
 
-  const row = result.rows[0]!;
+    const row = result.rows[0]!;
 
-// DEFENSIVE SECURITY: Whitelist instead of Blacklist
-// Instead of trying to block dangerous keys one by one,
-// we extract ONLY the keys that are 100% safe to display.
-const safeMeta: Record<string, unknown> = {};
-const ALLOWED_META_KEYS = ["simulated", "version", "environment", "region"]; // Add public keys here
+    const safeMeta: Record<string, unknown> = {};
+    const ALLOWED_META_KEYS = ["simulated", "version", "environment", "region"];
 
-  if (row.meta && typeof row.meta === "object") {
-    for (const key of Object.keys(row.meta)) {
-      if (ALLOWED_META_KEYS.includes(key)) {
-        safeMeta[key] = row.meta[key];
+    if (row.meta && typeof row.meta === "object") {
+      for (const key of Object.keys(row.meta)) {
+        if (ALLOWED_META_KEYS.includes(key)) {
+          safeMeta[key] = row.meta[key];
+        }
       }
     }
+
+    const responseAgent = {
+      did: row.did,
+      name: row.name,
+      scope: row.scope,
+      created_at: row.created_at,
+      last_seen: row.last_seen,
+      meta: Object.keys(safeMeta).length > 0 ? safeMeta : null,
+      total_events: row.total_events,
+      success_count: row.success_count,
+      error_count: row.error_count,
+      anomaly_count: row.anomaly_count,
+      success_rate: row.success_rate,
+      top_actions: row.top_actions,
+    };
+
+    return res.json({ agent: responseAgent });
+  } catch (err) {
+    console.error('[routes/agents] GET /:did error:', err instanceof Error ? err.message : 'Unknown error');
+    return res.status(500).json({ error: 'Service unavailable', code: 'INTERNAL_ERROR' });
   }
-
-  // Construimos la respuesta final inyectando el meta limpio
-  const responseAgent = {
-    did: row.did,
-    name: row.name,
-    scope: row.scope,
-    created_at: row.created_at,
-    last_seen: row.last_seen,
-    meta: Object.keys(safeMeta).length > 0 ? safeMeta : null, // Si no hay nada seguro, devolvemos null
-    total_events: row.total_events,
-    success_count: row.success_count,
-    error_count: row.error_count,
-    anomaly_count: row.anomaly_count,
-    success_rate: row.success_rate,
-    top_actions: row.top_actions,
-  };
-
-  return res.json({ agent: responseAgent });
 });

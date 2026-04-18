@@ -29,6 +29,10 @@ export async function recordAnomaly(params: {
     }
 
     // 2. If we have space, record the anomaly
+    // event_id column is UUID — skip if the caller passed a non-UUID string
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
+    if (!isValidUUID) return;
+
     await query(
       `INSERT INTO anomalies (event_id, agent_id, action)
        VALUES ($1, $2, $3)`,
@@ -48,9 +52,9 @@ export async function cleanupOldAnomalies() {
   try {
     // Step 1: Copy to archive first
     await query(
-      `INSERT INTO anomalies_archive 
-        (id, event_id, agent_id, action, reason, detected_at, acknowledged)
-       SELECT id, event_id, agent_id, action, reason, detected_at, acknowledged
+      `INSERT INTO anomalies_archive
+        (id, event_id, agent_id, action, detected_at, acknowledged)
+       SELECT id, event_id, agent_id, action, detected_at, acknowledged
        FROM anomalies
        WHERE detected_at < NOW() - INTERVAL '90 days'
           OR acknowledged = true
