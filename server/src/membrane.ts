@@ -8,6 +8,9 @@ const INTERNAL_PORT = parseInt(process.env.INTERNAL_PORT ?? "3001");
 const MEMBRANE_PORT = parseInt(process.env.PORT ?? "8080");
 const ARIA_INTERNAL = `http://localhost:${INTERNAL_PORT}`;
 
+// Trust proxy for Railway (handles X-Forwarded-For header)
+app.set('trust proxy', 1);
+
 const scanningIPs = new Map<string, number>();
 const SCAN_THRESHOLD = 10;
 const blockedIPs = new Set<string>();
