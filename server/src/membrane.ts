@@ -1,4 +1,5 @@
 import express from "express";
+import path from "path";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
@@ -90,17 +91,42 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Debug log for incoming requests
+app.use(( req, _res, next) => {
+  console.log('[membrane] Received request:', req.method, req.url);
+  next();
+});
+
+// Root route: serve landing page directly as fallback (use middleware pattern)
+app.use('/', (req, res, next) => {
+  if (req.method === 'GET' && req.path === '/') {
+    console.log('[membrane] Root GET - serving landing page');
+    try {
+      const indexPath = path.join(process.cwd(), 'src', 'public', 'index.html');
+      res.sendFile(indexPath);
+      return;
+    } catch (e) {
+      console.log('[membrane] Landing page not found, proxying to internal');
+    }
+  }
+  next();
+});
+
+// Proxy all requests to internal Express
 app.use(
   "/",
   createProxyMiddleware({
     target: ARIA_INTERNAL,
     changeOrigin: true,
     on: {
-      error: (_err, _req, res) => {
-        (res as express.Response).status(503).json({
-          error: "Service unavailable",
-          code: "MEMBRANE_ERROR",
-        });
+      error: (err, req, res) => {
+        console.error('[membrane] Proxy error for:', req.url, err?.message);
+        try {
+          (res as express.Response).status(502).json({
+            error: "Bad Gateway",
+            code: "MEMBRANE_PROXY_ERROR",
+          });
+        } catch {}
       },
     },
   })
