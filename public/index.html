@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARIA — Trust Infrastructure for Autonomous AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-brand">ARIA</div>
+    <div class="nav-links">
+      <a href="#quickstart" class="nav-link">Docs</a>
+      <a href="#cta" class="nav-link nav-link-cta">Get API Key</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1 class="hero-title">Don't trust your AI agents. Verify them.</h1>
+      <p class="hero-subtitle">ARIA is the trust infrastructure for the agentic economy. Cryptographic identities, immutable audit trails, and zero-trust scope enforcement.</p>
+      <a href="#quickstart" class="btn btn-primary">Start Building</a>
+    </div>
+  </section>
+
+  <!-- The Problem -->
+  <section class="section section-problem">
+    <div class="container">
+      <h2 class="section-title">The Black Box Problem</h2>
+      <p class="section-text">Companies are giving AI agents access to emails, payments, and databases. When an agent goes out of bounds, who is liable? You can't fix a compliance issue if you don't have a cryptographic proof of what the agent did.</p>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="section section-how">
+    <div class="container">
+      <h2 class="section-title">How It Works</h2>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon">🔓</div>
+          <h3 class="card-title">Cryptographic Identity</h3>
+          <p class="card-text">Every agent is registered with a unique DID and an HMAC-SHA256 signing key.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <h3 class="card-title">Zero-Trust Scope</h3>
+          <p class="card-text">Declare what an agent can do (e.g., 'read:invoices'). ARIA enforces it server-side, ignoring client claims.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <h3 class="card-title">Dynamic Reputation</h3>
+          <p class="card-text">Track success rates, errors, and anomalies. Know exactly which agents to trust.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quickstart -->
+  <section class="section section-quickstart" id="quickstart">
+    <div class="container">
+      <h2 class="section-title">Quickstart</h2>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">TypeScript</span>
+        </div>
+        <pre class="code-content"><code><span class="code-keyword">import</span> { createClient } <span class="code-keyword">from</span> <span class="code-string">'@elonmuscito/aria-sdk'</span>;
+
+<span class="code-keyword">const</span> aria = createClient({ 
+  apiKey: <span class="code-string">'key...'</span> 
+});
+
+<span class="code-keyword">const</span> agent = <span class="code-keyword">await</span> aria.registerAgent({
+  name: <span class="code-string">'invoice-bot'</span>,
+  scope: [<span class="code-string">'read:invoices'</span>]
+});
+
+<span class="code-keyword">await</span> aria.track(agent.did, agent.secret, <span class="code-string">'read:invoices'</span>, <span class="code-keyword">async</span> () => {
+  <span class="code-comment">// Agent logic here</span>
+});</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- DTS Section -->
+  <section class="section section-dts">
+    <div class="container">
+      <h2 class="section-title">Distributed Trust Shell (DTS)</h2>
+      <p class="section-text">For high-stakes environments. ARIA splits the agent's secret using Shamir's Secret Sharing and binds it to a hardware fingerprint. The full secret never exists in your database or RAM.</p>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section section-cta" id="cta">
+    <div class="container">
+      <h2 class="section-title">Ready to make your agents accountable?</h2>
+      <a href="https://aria-production-0458.up.railway.app/v1/auth/register" target="_blank" rel="noopener" class="btn btn-primary">Create Free Account</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>ARIA — Autonomous Registry for Intelligence Accountability</p>
+    </div>
+  </footer>
+</body>
+</html>

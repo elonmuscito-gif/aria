@@ -78,6 +78,9 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Serve static landing page from public/ folder
+app.use(express.static('../public'));
+
 // 4. RUTA PÚBLICA DE SETUP (Chicken-and-Egg)
 app.post("/v1/setup", setupLimiter, async (req, res) => {
   const { owner_email, setup_key, name, scope } = req.body as Record<string, unknown>;
