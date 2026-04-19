@@ -27,6 +27,9 @@ process.on("unhandledRejection", (reason) => {
 const app = express();
 const PORT = 3001;
 
+// Trust proxy for Railway (handles X-Forwarded-For header)
+app.set('trust proxy', 1);
+
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 1500, 
