@@ -102,11 +102,26 @@ app.use('/', (req, res, next) => {
   if (req.method === 'GET' && req.path === '/') {
     console.log('[membrane] Root GET - serving landing page');
     try {
-      const indexPath = path.join(process.cwd(), 'src', 'public', 'index.html');
-      res.sendFile(indexPath);
-      return;
-    } catch (e) {
-      console.log('[membrane] Landing page not found, proxying to internal');
+      // In Railway: WORKDIR is /app, files are in /app/server/src/public/
+      const possiblePaths = [
+        path.join(process.cwd(), 'server', 'src', 'public', 'index.html'),
+        path.join(process.cwd(), 'src', 'public', 'index.html'),
+        '/app/server/src/public/index.html',
+      ];
+      for (const indexPath of possiblePaths) {
+        try {
+          const fs = require('fs');
+          if (fs.existsSync(indexPath)) {
+            console.log('[membrane] Found landing page at:', indexPath);
+            res.sendFile(indexPath);
+            return;
+          }
+        } catch {}
+      }
+      console.log('[membrane] Landing page not found in any path');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      console.log('[membrane] Landing page error:', msg);
     }
   }
   next();
@@ -120,7 +135,7 @@ app.use(
     changeOrigin: true,
     on: {
       error: (err, req, res) => {
-        console.error('[membrane] Proxy error for:', req.url, err?.message);
+        console.error('[membrane] Proxy error for:', req.url);
         try {
           (res as express.Response).status(502).json({
             error: "Bad Gateway",

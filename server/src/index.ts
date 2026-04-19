@@ -82,12 +82,23 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Serve static landing page from src/public/ folder
-app.use(express.static(path.join(process.cwd(), 'src', 'public')));
+// Serve static landing page from src/public/ folder (in Railway: /app/server/src/public/)
+const publicPath = path.join(process.cwd(), 'server', 'src', 'public');
+app.use(express.static(publicPath));
 
 // Serve index.html for root route
 app.get('/', (req, res) => {
-  res.sendFile(path.join(process.cwd(), 'src', 'public', 'index.html'));
+  const rootPaths = [
+    path.join(process.cwd(), 'server', 'src', 'public', 'index.html'),
+    path.join(process.cwd(), 'src', 'public', 'index.html'),
+  ];
+  for (const p of rootPaths) {
+    try {
+      res.sendFile(p);
+      return;
+    } catch {}
+  }
+  res.status(404).json({ error: "Not found", code: "NOT_FOUND" });
 });
 
 // 4. RUTA PÚBLICA DE SETUP (Chicken-and-Egg)
