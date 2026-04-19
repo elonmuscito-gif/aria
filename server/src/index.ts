@@ -82,12 +82,12 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Serve static landing page from public/ folder (in parent directory)
-app.use(express.static(path.join(process.cwd(), '..', 'public')));
+// Serve static landing page from src/public/ folder
+app.use(express.static(path.join(process.cwd(), 'src', 'public')));
 
 // Serve index.html for root route
 app.get('/', (req, res) => {
-  res.sendFile(path.join(process.cwd(), '..', 'public', 'index.html'));
+  res.sendFile(path.join(process.cwd(), 'src', 'public', 'index.html'));
 });
 
 // 4. RUTA PÚBLICA DE SETUP (Chicken-and-Egg)
