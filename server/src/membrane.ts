@@ -4,8 +4,8 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
 const app = express();
-const INTERNAL_PORT = parseInt(process.env.INTERNAL_PORT ?? "3001");
-const MEMBRANE_PORT = parseInt(process.env.PORT ?? "8080");
+const INTERNAL_PORT = 3000;
+const EXTERNAL_PORT = parseInt(process.env.PORT || "8080");
 const ARIA_INTERNAL = `http://localhost:${INTERNAL_PORT}`;
 
 // Trust proxy for Railway (handles X-Forwarded-For header)
@@ -110,45 +110,37 @@ setInterval(() => {
   scanningIPs.clear();
 }, 10 * 60 * 1000);
 
-async function waitForServer(url: string, retries = 10): Promise<void> {
-  for (let i = 0; i < retries; i++) {
+// Wait for internal server with proper async delays
+async function waitForInternalServer(): Promise<boolean> {
+  for (let i = 1; i <= 30; i++) {
     try {
-      const res = await fetch(url);
-      if (res.ok) return;
-    } catch {}
-    const delay = Math.min(1000 * Math.pow(2, i), 10000); // 1s, 2s, 4s, 8s... capped
-    console.log(`[membrane] Waiting for internal server... (${i + 1}/${retries}) retrying in ${delay}ms`);
-    await new Promise((r) => setTimeout(r, delay));
+      const res = await fetch(`http://localhost:${INTERNAL_PORT}/health`);
+      if (res.ok) return true;
+    } catch {
+      // Continue retrying
+    }
+    console.log(`[membrane] Waiting for internal server... (${i}/30)`);
+    await new Promise(r => setTimeout(r, 1000)); // KEY: Wait 1 second between retries
   }
-  // Keep retrying indefinitely instead of crashing
-  console.error("[membrane] Internal server not available - entering unlimited retry mode");
-  return new Promise(() => {
-    setInterval(async () => {
-      try {
-        const res = await fetch(`http://localhost:${INTERNAL_PORT}/health`);
-        if (res.ok) {
-          console.log("[membrane] Internal server became available!");
-        }
-      } catch {
-        // keep retrying
-      }
-      console.log("[membrane] Retrying internal server connection...");
-    }, 5000);
+  return false;
+}
+
+// Start membrane
+async function startMembrane() {
+  const ready = await waitForInternalServer();
+  
+  if (!ready) {
+    console.error("[membrane] Failed to connect - retrying in 5s...");
+    setTimeout(startMembrane, 5000);
+    return;
+  }
+
+  console.log("[membrane] Internal server ready");
+  app.listen(EXTERNAL_PORT, () => {
+    console.log(`ARIA Membrane running on port ${EXTERNAL_PORT}`);
   });
 }
 
-waitForServer(`http://localhost:${INTERNAL_PORT}/health`)
-  .then(() => {
-    console.log("[membrane] Internal server ready");
-    app.listen(MEMBRANE_PORT, () => {
-      console.log(`[membrane] ARIA Membrane running on port ${MEMBRANE_PORT}`);
-    });
-  })
-  .catch(() => {
-    // Already handled - keep retrying indefinitely
-    app.listen(MEMBRANE_PORT, () => {
-      console.log(`[membrane] ARIA Membrane running on port ${MEMBRANE_PORT} (retry mode)`);
-    });
-  });
+startMembrane();
 
 export default app;
