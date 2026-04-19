@@ -91,6 +91,22 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Direct health endpoint for Railway (doesn't need internal API)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'membrane', port: EXTERNAL_PORT });
+});
+
+// Also proxy /health to internal for full check
+app.get('/api/health', async (req, res) => {
+  try {
+    const internalRes = await fetch(`http://localhost:${INTERNAL_PORT}/health`);
+    const data = await internalRes.json() as { status: string; db?: string; uptime?: number };
+    res.json({ status: data.status, db: data.db, uptime: data.uptime, membrane: 'proxied' });
+  } catch {
+    res.status(503).json({ status: 'error', internal: 'unreachable' });
+  }
+});
+
 // Debug log for incoming requests
 app.use(( req, _res, next) => {
   console.log('[membrane] Received request:', req.method, req.url);
@@ -153,11 +169,15 @@ setInterval(() => {
 
 // Wait for internal server with proper async delays
 async function waitForInternalServer(): Promise<boolean> {
+  console.log(`[membrane] Starting, will wait for internal API on port ${INTERNAL_PORT}`);
   for (let i = 1; i <= 30; i++) {
     try {
       const res = await fetch(`http://localhost:${INTERNAL_PORT}/health`);
-      if (res.ok) return true;
-    } catch {
+      if (res.ok) {
+        console.log(`[membrane] Internal API is ready!`);
+        return true;
+      }
+    } catch (e) {
       // Continue retrying
     }
     console.log(`[membrane] Waiting for internal server... (${i}/30)`);
@@ -166,20 +186,19 @@ async function waitForInternalServer(): Promise<boolean> {
   return false;
 }
 
-// Start membrane
+// Start membrane - try to connect, but START HTTP SERVER FIRST regardless
 async function startMembrane() {
+  // Start HTTP server immediately (it will handle errors gracefully)
+  app.listen(EXTERNAL_PORT, () => {
+    console.log(`[membrane] HTTP server started on port ${EXTERNAL_PORT}`);
+  });
+  
+  // Then try to connect to internal
   const ready = await waitForInternalServer();
   
   if (!ready) {
-    console.error("[membrane] Failed to connect - retrying in 5s...");
-    setTimeout(startMembrane, 5000);
-    return;
+    console.error("[membrane] Internal API not available - running in degraded mode");
   }
-
-  console.log("[membrane] Internal server ready");
-  app.listen(EXTERNAL_PORT, () => {
-    console.log(`ARIA Membrane running on port ${EXTERNAL_PORT}`);
-  });
 }
 
 startMembrane();
