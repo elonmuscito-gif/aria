@@ -116,10 +116,25 @@ async function waitForServer(url: string, retries = 10): Promise<void> {
       const res = await fetch(url);
       if (res.ok) return;
     } catch {}
-    console.log(`[membrane] Waiting for internal server... (${i + 1}/${retries})`);
-    await new Promise((r) => setTimeout(r, 2000));
+    const delay = Math.min(1000 * Math.pow(2, i), 10000); // 1s, 2s, 4s, 8s... capped
+    console.log(`[membrane] Waiting for internal server... (${i + 1}/${retries}) retrying in ${delay}ms`);
+    await new Promise((r) => setTimeout(r, delay));
   }
-  throw new Error("[membrane] Internal server not available");
+  // Keep retrying indefinitely instead of crashing
+  console.error("[membrane] Internal server not available - entering unlimited retry mode");
+  return new Promise(() => {
+    setInterval(async () => {
+      try {
+        const res = await fetch(`http://localhost:${INTERNAL_PORT}/health`);
+        if (res.ok) {
+          console.log("[membrane] Internal server became available!");
+        }
+      } catch {
+        // keep retrying
+      }
+      console.log("[membrane] Retrying internal server connection...");
+    }, 5000);
+  });
 }
 
 waitForServer(`http://localhost:${INTERNAL_PORT}/health`)
@@ -129,9 +144,11 @@ waitForServer(`http://localhost:${INTERNAL_PORT}/health`)
       console.log(`[membrane] ARIA Membrane running on port ${MEMBRANE_PORT}`);
     });
   })
-  .catch((err) => {
-    console.error(err.message);
-    process.exit(1);
+  .catch(() => {
+    // Already handled - keep retrying indefinitely
+    app.listen(MEMBRANE_PORT, () => {
+      console.log(`[membrane] ARIA Membrane running on port ${MEMBRANE_PORT} (retry mode)`);
+    });
   });
 
 export default app;
