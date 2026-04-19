@@ -1,5 +1,7 @@
 // 1. IMPORTS
 import { randomUUID, createHash } from "crypto";
+import path from "path";
+import { fileURLToPath } from "url";
 import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
@@ -11,6 +13,10 @@ import { authRouter } from "./routes/auth.js";
 import { requireApiKey, invalidateCacheByApiKeyId } from "./middleware/auth.js";
 import { checkHealth, query } from "./db/pool.js";
 import rateLimit from 'express-rate-limit';
+
+// ESM __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 2. MANEJO DE ERRORES CRÍTICOS
 process.on("uncaughtException", (err) => {
@@ -82,7 +88,7 @@ app.use((req, _res, next) => {
 });
 
 // Serve static landing page from public/ folder
-app.use(express.static('../public'));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // 4. RUTA PÚBLICA DE SETUP (Chicken-and-Egg)
 app.post("/v1/setup", setupLimiter, async (req, res) => {
