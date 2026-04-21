@@ -252,11 +252,11 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 // 6. ARRANQUE DEL SERVIDOR (Railway compatible)
-const LISTEN_PORT = process.env.PORT || 8080;
-const LISTEN_HOST = process.env.HOST || '0.0.0.0';
+const LISTEN_PORT = 3000;
+const LISTEN_HOST = '127.0.0.1';
 (async () => {
   app.listen(LISTEN_PORT, LISTEN_HOST, () => {
-    console.log(`ARIA API running on ${LISTEN_HOST}:${LISTEN_PORT}`);
+    console.log(`ARIA Internal API running on ${LISTEN_HOST}:${LISTEN_PORT}`);
   });
 })();
 

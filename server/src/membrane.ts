@@ -7,6 +7,7 @@ import helmet from "helmet";
 const app = express();
 const INTERNAL_PORT = 3000;
 const EXTERNAL_PORT = parseInt(process.env.PORT || "8080");
+const LISTEN_HOST = process.env.HOST || '0.0.0.0';
 const ARIA_INTERNAL = `http://localhost:${INTERNAL_PORT}`;
 
 // Trust proxy for Railway (handles X-Forwarded-For header)
@@ -220,7 +221,7 @@ async function waitForInternalServer(): Promise<boolean> {
 // Start membrane - try to connect, but START HTTP SERVER FIRST regardless
 async function startMembrane() {
   // Start HTTP server immediately (it will handle errors gracefully)
-  app.listen(EXTERNAL_PORT, () => {
+  app.listen(EXTERNAL_PORT, LISTEN_HOST, () => {
     console.log(`[membrane] HTTP server started on port ${EXTERNAL_PORT}`);
   });
   
