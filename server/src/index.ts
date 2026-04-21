@@ -251,11 +251,12 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: "Internal server error", code: "INTERNAL_ERROR", details: err.message });
 });
 
-// 6. ARRANQUE DEL SERVIDOR (use PORT env or 8080)
+// 6. ARRANQUE DEL SERVIDOR (Railway compatible)
 const LISTEN_PORT = process.env.PORT || 8080;
+const LISTEN_HOST = process.env.HOST || '0.0.0.0';
 (async () => {
-  app.listen(LISTEN_PORT, () => {
-    console.log(`ARIA API running on port ${LISTEN_PORT}`);
+  app.listen(LISTEN_PORT, LISTEN_HOST, () => {
+    console.log(`ARIA API running on ${LISTEN_HOST}:${LISTEN_PORT}`);
   });
 })();
 
