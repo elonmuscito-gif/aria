@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "node test.mjs",
-    "start": "npx tsx src/index.ts",
-    "start:full": "npx tsx src/index.ts",
+    "start": "npx concurrently \"npx tsx src/index.ts\" \"npx tsx src/membrane.ts\"",
+    "start:full": "npx concurrently \"npx tsx src/index.ts\" \"npx tsx src/membrane.ts\"",
     "membrane": "npx tsx src/membrane.ts",
     "migrate:007": "npx tsx migrate-007.ts",
     "migrate:008": "npx tsx migrate-008.ts",
