@@ -113,6 +113,8 @@ app.use(( req, _res, next) => {
   next();
 });
 
+// Health endpoints already added above
+
 // Root route: serve landing page directly
 app.get('/', (req, res) => {
   console.log('[membrane] Serving landing page');
@@ -136,6 +138,35 @@ app.get('/', (req, res) => {
     <h1>Don't trust your AI agents. Verify them.</h1>
     <p>ARIA is the trust infrastructure for the agentic economy. Cryptographic identities, immutable audit trails, and zero-trust scope enforcement.</p>
     <a href="/health">Check Health</a>
+  </div>
+</body>
+</html>`;
+  res.setHeader('Content-Type', 'text/html');
+res.send(html);
+});
+
+// Proxy all GET / to landing, otherwise to internal API
+app.get('/', (req, res) => {
+  console.log('[membrane] GET / - landing page');
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARIA — Trust Infrastructure for Autonomous AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, system-ui, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+    h1 { font-size: clamp(32px, 6vw, 56px); margin-bottom: 16px; background: linear-gradient(135deg, #fff, #00d4ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    p { font-size: 18px; color: #888; max-width: 500px; margin-bottom: 32px; }
+    a { display: inline-block; padding: 14px 32px; background: #00d4ff; color: #0a0a0a; text-decoration: none; border-radius: 8px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Don't trust your AI agents. Verify them.</h1>
+    <p>ARIA - Trust Infrastructure for Autonomous AI</p>
+    <a href="/health">Health Check</a>
   </div>
 </body>
 </html>`;
