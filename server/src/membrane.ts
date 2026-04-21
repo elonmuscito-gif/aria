@@ -77,6 +77,7 @@ app.use(membraneLimit);
 
 const ALLOWED_PATHS = [
   "/",
+  "/app",
   "/health",
   "/v1/setup",
   "/v1/agents",
@@ -86,7 +87,10 @@ const ALLOWED_PATHS = [
 ];
 
 app.use((req, _res, next) => {
-  const allowed = ALLOWED_PATHS.some((p) => req.path.startsWith(p));
+  // "/" must be exact-matched — startsWith("/") would pass everything
+  const allowed = ALLOWED_PATHS.some((p) =>
+    p === "/" ? req.path === "/" : req.path.startsWith(p)
+  );
   if (!allowed) {
     return;
   }

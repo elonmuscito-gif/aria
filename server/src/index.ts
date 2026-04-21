@@ -61,35 +61,50 @@ app.use(helmet({ contentSecurityPolicy: false, xPoweredBy: false }));
 app.disable("x-powered-by");
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:3001", "http://localhost:8080"],
+  credentials: true,
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-app.use(express.json({ limit: "1mb" }));
+// Explicit page routes registered BEFORE express.static to prevent
+// static's directory-redirect from intercepting /app → /app/
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/app', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'app', 'index.html'));
+});
+
+app.get('/app/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'app', 'index.html'));
+});
+
+app.get('/app/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'app', 'index.html'));
+});
+
 app.use(express.static(path.join(__dirname, "public")));
+
+app.use(express.json({ limit: "1mb" }));
 
 app.use((req, _res, next) => {
   if (!req.body || typeof req.body !== 'object') return next();
-  
+
   function checkDepth(obj: unknown, depth: number): boolean {
     if (depth > 5) return false;
     if (typeof obj !== 'object' || obj === null) return true;
     return Object.values(obj).every(v => checkDepth(v, depth + 1));
   }
-  
+
   if (!checkDepth(req.body, 0)) {
-    _res.status(400).json({ 
-      error: 'JSON nesting too deep', 
-      code: 'JSON_TOO_DEEP' 
+    _res.status(400).json({
+      error: 'JSON nesting too deep',
+      code: 'JSON_TOO_DEEP'
     });
     return;
   }
   next();
-});
-
-// Root endpoint — serve landing page
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // 4. RUTA PÚBLICA DE SETUP (Chicken-and-Egg)
