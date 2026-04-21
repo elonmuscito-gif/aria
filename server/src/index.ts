@@ -82,13 +82,9 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Serve static landing page from src/public/ folder (in Railway: /app/server/src/public/)
-const publicPath = path.join(process.cwd(), 'server', 'src', 'public');
-app.use(express.static(publicPath));
-
-// Serve index.html from public folder for root route
+// Root endpoint
 app.get('/', (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
+  res.json({ name: 'ARIA', version: '1.0.0', status: 'ok' });
 });
 
 // 4. RUTA PÚBLICA DE SETUP (Chicken-and-Egg)

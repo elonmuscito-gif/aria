@@ -7,6 +7,16 @@ import { requireApiKey } from "../middleware/auth.js";
 
 export const authRouter = Router();
 
+const authRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many auth requests. Try again later.", code: "RATE_LIMITED" },
+});
+
+authRouter.use(authRateLimiter);
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
