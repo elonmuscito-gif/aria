@@ -261,11 +261,11 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: "Internal server error", code: "INTERNAL_ERROR", details: err.message });
 });
 
-// 6. ARRANQUE DEL SERVIDOR (always on port 3000 internal)
+// 6. ARRANQUE DEL SERVIDOR (use PORT env or 8080)
+const LISTEN_PORT = process.env.PORT || 8080;
 (async () => {
-  const INTERNAL_PORT = 3000;
-  app.listen(INTERNAL_PORT, () => {
-    console.log(`ARIA API running on internal port ${INTERNAL_PORT}`);
+  app.listen(LISTEN_PORT, () => {
+    console.log(`ARIA API running on port ${LISTEN_PORT}`);
   });
 })();
 
