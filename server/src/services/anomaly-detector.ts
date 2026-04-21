@@ -72,3 +72,12 @@ export async function cleanupOldAnomalies() {
     console.error("[anomaly-detector] Cleanup failed:", err instanceof Error ? err.message : String(err));
   }
 }
+
+// Run cleanup on startup
+cleanupOldAnomalies().catch(console.error);
+
+// Schedule cleanup to run every 24 hours
+setInterval(async () => {
+  await cleanupOldAnomalies();
+  console.log('[anomaly-detector] Archived old anomalies');
+}, 24 * 60 * 60 * 1000);

@@ -246,6 +246,14 @@ eventsRouter.post("/batch", async (req, res) => {
 
   const accepted: string[] = [];
   const rejected: Array<{ eventId: string; reason: string }> = [];
+  
+  // Summary counters
+  const summary = {
+    scopeViolations: 0,
+    signatureFailures: 0,
+    rateLimitExceeded: 0,
+    hardwareConflicts: 0
+  };
 
   const firstEvent = events[0]!;
   const agentLookup = await query<{ id: string; scope: string[]; hmac_key: string | null; meta: Record<string, unknown> | null; signing_version: number }>(
@@ -287,6 +295,7 @@ eventsRouter.post("/batch", async (req, res) => {
       ).toString("hex");
       if (derivedShareC !== storedShareC) {
         hardwareConflict = true;
+        summary.hardwareConflicts++;
       }
     }
     
@@ -296,8 +305,19 @@ eventsRouter.post("/batch", async (req, res) => {
       agentDid: event.agentDid,
       action: event.action,
     });
+    
+    if (!signatureValid) {
+      summary.signatureFailures++;
+    }
 
     const rateLimitExceeded = checkRateLimit(agentId);
+    if (rateLimitExceeded) {
+      summary.rateLimitExceeded++;
+    }
+    
+    if (!serverWithinScope) {
+      summary.scopeViolations++;
+    }
     let finalMeta: Record<string, unknown> | null = rateLimitExceeded
       ? { ...event.meta, rate_limit_exceeded: true }
       : (event.meta ?? null);
@@ -385,6 +405,7 @@ eventsRouter.post("/batch", async (req, res) => {
     accepted: accepted.length,
     rejected: rejected.length,
     ...(rejected.length > 0 && { rejectedEvents: rejected }),
+    summary
   });
 });
 
