@@ -2,11 +2,13 @@ import { Resend } from 'resend';
 
 const FROM_EMAIL = 'ARIA <onboarding@resend.dev>';
 
+console.log('[email] RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
+console.log('[email] APP_URL:', process.env.APP_URL);
+
 // Lazy init — only construct when RESEND_API_KEY is present to avoid
 // crashing at startup in local/dev environments.
 function getResend(): Resend {
   const key = process.env.RESEND_API_KEY;
-  console.log('[email] Resend initialized:', !!key);
   if (!key) throw new Error('RESEND_API_KEY environment variable is not set');
   return new Resend(key);
 }
@@ -18,7 +20,7 @@ export async function sendConfirmationEmail(
 ): Promise<void> {
   const confirmUrl = `${process.env.APP_URL}/v1/auth/confirm?token=${token}`;
 
-  await getResend().emails.send({
+  const response = await getResend().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: 'Confirm your ARIA account',
@@ -38,13 +40,14 @@ export async function sendConfirmationEmail(
       </div>
     `
   });
+  console.log('[email] Resend response:', JSON.stringify(response));
 }
 
 export async function sendVerificationCode(
   email: string,
   code: string
 ): Promise<void> {
-  await getResend().emails.send({
+  const response = await getResend().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: `Your ARIA verification code: ${code}`,
@@ -63,4 +66,5 @@ export async function sendVerificationCode(
       </div>
     `
   });
+  console.log('[email] Resend response:', JSON.stringify(response));
 }
