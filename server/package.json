@@ -10,8 +10,8 @@
     "membrane": "npx tsx src/membrane.ts",
     "migrate:007": "npx tsx migrate-007.ts",
     "migrate:008": "npx tsx migrate-008.ts",
-    "cli": "node cli-dashboard.mjs",
-    "start:full": "npx concurrently \"npx tsx src/index.ts\" \"npx tsx src/membrane.ts\""
+    "migrate:009": "npx tsx migrate-009.ts",
+    "cli": "node cli-dashboard.mjs"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +26,7 @@
     "helmet": "^8.1.0",
     "http-proxy-middleware": "^3.0.5",
     "pg": "^8.20.0",
+    "resend": "^6.12.2",
     "shamirs-secret-sharing": "^2.0.1"
   },
   "devDependencies": {
