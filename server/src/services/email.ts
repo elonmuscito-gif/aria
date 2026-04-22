@@ -6,6 +6,7 @@ const FROM_EMAIL = 'ARIA <onboarding@resend.dev>';
 // crashing at startup in local/dev environments.
 function getResend(): Resend {
   const key = process.env.RESEND_API_KEY;
+  console.log('[email] Resend initialized:', !!key);
   if (!key) throw new Error('RESEND_API_KEY environment variable is not set');
   return new Resend(key);
 }
