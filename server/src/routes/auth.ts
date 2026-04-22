@@ -121,14 +121,19 @@ authRouter.post("/register", validateRegisterInput, registerLimiter, async (req,
       return res.status(500).json({ error: "Service unavailable", code: "CREATE_USER_FAILED" });
     }
 
+    let emailSent = false;
     try {
       await sendConfirmationEmail(email.toLowerCase(), name?.trim() || email, confirmationToken);
+      emailSent = true;
       console.log('[auth] Confirmation email sent to:', email.toLowerCase());
     } catch (err) {
       console.error('[auth] Failed to send email:', err instanceof Error ? err.message : err);
     }
 
-    res.status(201).json({ message: "Check your email to confirm your account" });
+    const message = emailSent
+      ? "Check your email to confirm your account"
+      : "Account created. Email confirmation is temporarily unavailable — contact support to activate your account.";
+    res.status(201).json({ message });
   } catch (e) {
     console.error("[auth] Register error:", e instanceof Error ? e.message : "Unknown");
     res.status(500).json({ error: "Service unavailable", code: "REGISTER_ERROR" });
