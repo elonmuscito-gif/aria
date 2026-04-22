@@ -92,6 +92,7 @@ function validateLoginInput(
 // ─── POST /v1/auth/register ───────────────────────────────────────────────────
 // Creates user, sends confirmation email. API key is NOT issued until email confirmed.
 authRouter.post("/register", validateRegisterInput, registerLimiter, async (req, res) => {
+  console.log('[auth] Register endpoint hit with email:', req.body?.email);
   const { email, password, name } = req.body as { email: string; password: string; name?: string };
 
   try {
