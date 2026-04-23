@@ -1,13 +1,9 @@
 import { Resend } from 'resend';
 
-const FROM_EMAIL = 'ARIA <onboarding@resend.dev>';
+const FROM_EMAIL = 'ARIA <noreply@ariatrust.org>';
 
 console.log('[email] RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
 console.log('[email] APP_URL:', process.env.APP_URL);
-
-if (process.env.RESEND_API_KEY && FROM_EMAIL.includes('@resend.dev')) {
-  console.warn('[email] WARNING: No custom domain configured. Emails will only send to the Resend account owner email.');
-}
 
 // Lazy init — only construct when RESEND_API_KEY is present to avoid
 // crashing at startup in local/dev environments.
