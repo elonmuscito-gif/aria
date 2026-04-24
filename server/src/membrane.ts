@@ -84,6 +84,7 @@ const ALLOWED_PATHS = [
   "/v1/events",
   "/v1/auth",
   "/v1/api-keys",
+  "/v1/webhooks",
 ];
 
 app.use((req, _res, next) => {

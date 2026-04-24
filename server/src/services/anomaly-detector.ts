@@ -1,4 +1,5 @@
 import { query } from "../db/pool.js";
+import { triggerWebhooks } from "./webhook.js";
 
 // Security limit: A specific agent cannot generate more than 100 stored anomalies.
 // If it exceeds 100, new ones are ignored. This prevents disk fill-up attacks.
@@ -38,8 +39,32 @@ export async function recordAnomaly(params: {
        VALUES ($1, $2, $3)`,
       [eventId, agentId, action],
     );
-    
+
     console.warn(`[anomaly-detector] Recorded ${type} for agent ${agentId}`);
+
+    // Fire webhook — non-blocking, never throws
+    const agentInfo = await query<{ user_id: string | null; did: string; name: string }>(
+      `SELECT ak.user_id, a.did, a.name
+       FROM agents a
+       JOIN api_keys ak ON ak.id = a.api_key_id
+       WHERE a.id = $1`,
+      [agentId]
+    );
+    const info = agentInfo.rows[0];
+    if (info?.user_id) {
+      const severity =
+        type === 'scope_violation' || type === 'hardware_conflict' ? 'CRITICAL'
+        : type === 'rate_limit_exceeded' ? 'HIGH'
+        : 'MEDIUM';
+      triggerWebhooks(info.user_id, type, {
+        alert: 'ANOMALY_DETECTED',
+        severity,
+        agent: { did: info.did, name: info.name },
+        reason: type,
+        action,
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    }
   } catch (err) {
     // If anomaly insertion fails, it should NOT crash the server.
     // The original event was already saved, life goes on.

@@ -1,5 +1,6 @@
 import { syncToPublicTable } from "./sync-public-reputation";
 import { query } from "../db/pool.js";
+import { triggerWebhooks } from "./webhook.js";
 
 class ReputationQueue {
   private pending = new Set<string>();
@@ -38,12 +39,14 @@ class ReputationQueue {
 export const reputationQueue = new ReputationQueue();
 
 async function computeReputationIncremental(agentId: string): Promise<void> {
-  const lastSnap = await query<{ last_computed_at: string | null }>(
-    `SELECT last_computed_at FROM reputation_snapshots WHERE agent_id = $1`,
+  const lastSnap = await query<{ last_computed_at: string | null; prev_success_rate: string | null }>(
+    `SELECT last_computed_at, success_rate AS prev_success_rate
+     FROM reputation_snapshots WHERE agent_id = $1`,
     [agentId],
   );
 
   const lastComputedAt = lastSnap.rows[0]?.last_computed_at ?? null;
+  const prevScore = parseFloat(lastSnap.rows[0]?.prev_success_rate ?? '100');
 
   const result = await query<{
     total: string;
@@ -117,6 +120,27 @@ COUNT(*) FILTER (WHERE (meta->>'hardware_conflict')::boolean = true) AS hardware
 
   // --- THE TRACTOR: Sync to public table for the web ---
   syncToPublicTable(agentId, finalScore).catch(() => {});
+
+  // Fire critical trust alert when score drops below 20 from a non-critical state
+  if (finalScore < 20 && prevScore >= 20) {
+    const agentInfo = await query<{ user_id: string | null; did: string; name: string }>(
+      `SELECT ak.user_id, a.did, a.name
+       FROM agents a
+       JOIN api_keys ak ON ak.id = a.api_key_id
+       WHERE a.id = $1`,
+      [agentId]
+    );
+    const info = agentInfo.rows[0];
+    if (info?.user_id) {
+      triggerWebhooks(info.user_id, 'trust_score_critical', {
+        alert: 'TRUST_SCORE_CRITICAL',
+        severity: 'CRITICAL',
+        agent: { did: info.did, name: info.name, trustScore: finalScore },
+        reason: 'trust_score_critical',
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    }
+  }
 }
 
 async function getHistoricalTotals(agentId: string): Promise<{

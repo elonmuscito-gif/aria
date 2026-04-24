@@ -13,6 +13,7 @@ import bcrypt from "bcrypt";
 import { agentsRouter } from "./routes/agents.js";
 import { eventsRouter } from "./routes/events.js";
 import { authRouter } from "./routes/auth.js";
+import { webhooksRouter } from "./routes/webhooks.js";
 import { requireApiKey, invalidateCacheByApiKeyId } from "./middleware/auth.js";
 import { checkHealth, query } from "./db/pool.js";
 import rateLimit from 'express-rate-limit';
@@ -62,7 +63,7 @@ app.disable("x-powered-by");
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:3001", "http://localhost:8080"],
   credentials: true,
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
@@ -177,6 +178,7 @@ app.post("/v1/setup", setupLimiter, async (req, res) => {
 app.use("/v1/agents", apiLimiter, agentsRouter);
 app.use("/v1/events", apiLimiter, eventsRouter);
 app.use("/v1/auth", authRouter);
+app.use("/v1/webhooks", apiLimiter, webhooksRouter);
 
 // ENDPOINT 2: Create new API key
 app.post("/v1/api-keys", apiLimiter, requireApiKey, async (req, res) => {
