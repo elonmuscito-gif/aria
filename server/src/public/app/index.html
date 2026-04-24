@@ -845,6 +845,9 @@
       <button class="tab" id="tab-btn-apikeys"  onclick="showTab('apikeys', this)">API Keys</button>
     </div>
 
+    <!-- Brief login notice (auto-hides) -->
+    <div id="dashboard-notice" class="alert alert-success hidden" style="margin:16px 0 0"></div>
+
     <!-- ── OVERVIEW TAB ── -->
     <div id="tab-overview">
       <!-- Stats -->
@@ -903,6 +906,11 @@
           <button class="btn btn-danger btn-sm" onclick="rotateApiKey()">Rotate Key</button>
         </div>
 
+        <p style="font-size:13px;color:#888;margin-top:12px;line-height:1.6">
+          Your API key was set when you first logged in.<br>
+          To see it again, check your saved records or rotate to get a new one.
+        </p>
+
         <div class="warning-box">
           <p>Rotating your key immediately revokes the current one. Any SDK integrations using the old key will stop working until updated.</p>
         </div>
@@ -945,6 +953,14 @@
 
   function clearAlert() {
     document.getElementById('auth-alert').classList.add('hidden');
+  }
+
+  function showDashboardNotice(msg, type = 'success') {
+    const el = document.getElementById('dashboard-notice');
+    el.textContent = msg;
+    el.className = `alert alert-${type}`;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 6000);
   }
 
   function backToLogin() {
@@ -1013,11 +1029,16 @@
 
       if (!res.ok) throw new Error(data.error || 'Verification failed');
 
-      apiKey      = data.api_key;
       currentUser = data.user;
-      localStorage.setItem('aria_api_key', apiKey);
+      if (data.api_key) {
+        apiKey = data.api_key;
+        localStorage.setItem('aria_api_key', apiKey);
+      }
       localStorage.setItem('aria_user', JSON.stringify(currentUser));
       showDashboard();
+      if (!data.api_key) {
+        showDashboardNotice('Signed in successfully. Your existing API key is still active.');
+      }
     } catch (err) {
       showAlert(err.message);
     } finally {
