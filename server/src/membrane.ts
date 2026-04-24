@@ -97,29 +97,11 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Direct health endpoint for Railway (doesn't need internal API)
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'membrane', port: EXTERNAL_PORT });
-});
-
-// Also proxy /health to internal for full check
-app.get('/api/health', async (req, res) => {
-  try {
-    const internalRes = await fetch(`http://localhost:${INTERNAL_PORT}/health`);
-    const data = await internalRes.json() as { status: string; db?: string; uptime?: number };
-    res.json({ status: data.status, db: data.db, uptime: data.uptime, membrane: 'proxied' });
-  } catch {
-    res.status(503).json({ status: 'error', internal: 'unreachable' });
-  }
-});
-
 // Debug log for incoming requests
-app.use(( req, _res, next) => {
+app.use((req, _res, next) => {
   console.log('[membrane] Received request:', req.method, req.url);
   next();
 });
-
-// Health endpoints already added above
 
 // Root route proxied to internal server (index.ts serves landing page from public/)
 
