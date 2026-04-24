@@ -121,13 +121,18 @@ authRouter.post("/register", validateRegisterInput, registerLimiter, async (req,
       return res.status(500).json({ error: "Service unavailable", code: "CREATE_USER_FAILED" });
     }
 
+    console.log('[auth] User inserted successfully, preparing email...');
+    console.log('[auth] Confirmation token:', confirmationToken?.substring(0, 8) + '...');
+    console.log('[auth] APP_URL:', process.env.APP_URL);
+
     let emailSent = false;
     try {
+      console.log('[auth] Calling sendConfirmationEmail...');
       await sendConfirmationEmail(email.toLowerCase(), name?.trim() || email, confirmationToken);
       emailSent = true;
-      console.log('[auth] Confirmation email sent to:', email.toLowerCase());
+      console.log('[auth] Email sent successfully');
     } catch (err) {
-      console.error('[auth] Failed to send email:', err instanceof Error ? err.message : err);
+      console.error('[auth] Email error details:', JSON.stringify(err));
     }
 
     const message = emailSent
