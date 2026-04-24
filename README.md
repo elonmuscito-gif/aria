@@ -1,5 +1,7 @@
 # ARIA — Autonomous Registry for Intelligence Accountability
 
+**GitHub:** https://github.com/ariatrust-io/aria
+
 Trust infrastructure for autonomous AI. Every agent gets a cryptographic identity, an immutable audit trail, and a dynamic reputation score.
 
 ## The Problem
@@ -15,12 +17,14 @@ Companies are deploying AI agents that execute real-world actions: sending email
 
 ## Quick Start
 
+> **Note:** The SDK is being republished as `@ariatrust-io/aria-sdk`. Update your install once released.
+
 ```bash
-npm install @elonmuscito/aria-sdk
+npm install @ariatrust-io/aria-sdk
 ```
 
 ```typescript
-import { createClient } from '@elonmuscito/aria-sdk';
+import { createClient } from '@ariatrust-io/aria-sdk';
 
 const aria = createClient({
   baseUrl: 'https://aria-production-0458.up.railway.app',
@@ -46,7 +50,7 @@ For high-risk environments, standard API keys are insufficient. If the server is
 **DTS** uses **Shamir's Secret Sharing** bound to a **hardware fingerprint** so the complete secret **never exists** in server RAM or the database.
 
 ```typescript
-import { createClient } from '@elonmuscito/aria-sdk';
+import { createClient } from '@ariatrust-io/aria-sdk';
 
 const aria = createClient({
   baseUrl: 'https://aria-production-0458.up.railway.app',
@@ -107,4 +111,4 @@ curl -X POST https://aria-production-0458.up.railway.app/v1/auth/register \
 
 ---
 
-Built with ❤️ for the Agentic AI Economy.
+Built with ❤️ for the Agentic AI Economy. · https://github.com/ariatrust-io/aria
