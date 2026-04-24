@@ -96,13 +96,16 @@ authRouter.post("/register", validateRegisterInput, registerLimiter, async (req,
   const { email, password, name } = req.body as { email: string; password: string; name?: string };
 
   try {
-    const existing = await query<{ id: string }>(
-      "SELECT id FROM users WHERE email = $1",
+    const existing = await query<{ id: string; email_verified: boolean }>(
+      "SELECT id, email_verified FROM users WHERE email = $1",
       [email.toLowerCase()]
     );
     if (existing.rows[0]) {
-      // Return same message to avoid email enumeration
-      return res.status(201).json({ message: "Check your email to confirm your account" });
+      if (existing.rows[0].email_verified) {
+        return res.status(409).json({ error: "An account with this email already exists", code: "EMAIL_TAKEN" });
+      }
+      // Unverified — delete stale record and allow fresh registration
+      await query("DELETE FROM users WHERE id = $1", [existing.rows[0].id]);
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -183,7 +186,17 @@ authRouter.get("/confirm", async (req, res) => {
       [user.id]
     );
 
-    return res.redirect('/app?confirmed=1');
+    return res.send(`<html><body>
+      <p style="font-family:system-ui;text-align:center;margin-top:40px;color:#666">Confirmed! You can close this tab.</p>
+      <script>
+        if (window.opener) {
+          window.opener.postMessage('aria-confirmed', '*');
+          window.close();
+        } else {
+          window.location.href = '/app?confirmed=1';
+        }
+      </script>
+      </body></html>`);
   } catch (e) {
     console.error("[auth] Confirm error:", e instanceof Error ? e.message : "Unknown");
     res.status(500).send(confirmPageHtml('error', 'Service unavailable. Please try again.'));

@@ -759,10 +759,10 @@
     <div id="auth-alert" class="alert hidden"></div>
 
     <!-- ── LOGIN: Step 1 — credentials ── -->
-    <form id="login-form" onsubmit="handleLogin(event)">
+    <form id="login-form" onsubmit="handleLogin(event)" autocomplete="off">
       <div class="form-group">
         <label>Email</label>
-        <input type="email" id="login-email" placeholder="you@company.com" required autocomplete="email">
+        <input type="email" id="login-email" placeholder="you@company.com" required autocomplete="off">
       </div>
       <div class="form-group">
         <label>Password</label>
@@ -785,14 +785,14 @@
     </div>
 
     <!-- ── REGISTER ── -->
-    <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
+    <form id="register-form" class="hidden" onsubmit="handleRegister(event)" autocomplete="off">
       <div class="form-group">
         <label>Full Name</label>
-        <input type="text" id="register-name" placeholder="Jane Smith" required autocomplete="name">
+        <input type="text" id="register-name" placeholder="Jane Smith" required autocomplete="off">
       </div>
       <div class="form-group">
         <label>Work Email</label>
-        <input type="email" id="register-email" placeholder="jane@company.com" required autocomplete="email">
+        <input type="email" id="register-email" placeholder="jane@company.com" required autocomplete="off">
       </div>
       <div class="form-group">
         <label>Password</label>
@@ -1401,8 +1401,16 @@
     return s >= 80 ? 'Trusted' : s >= 50 ? 'Neutral' : 'Untrusted';
   }
 
+  // ── CONFIRMATION MESSAGE LISTENER ────────────────────────────────────────
+  window.addEventListener('message', (event) => {
+    if (event.data === 'aria-confirmed') {
+      showAuthTab('login');
+      showAlert('Email confirmed! Please sign in.', 'success');
+    }
+  });
+
   // ── INIT ──────────────────────────────────────────────────────────────────
-  // FIX 4: Clear all forms and password fields on page load
+  // Clear all forms and password fields on page load
   document.querySelectorAll('form, input').forEach(el => {
     if (el.tagName === 'FORM') el.reset();
     if (el.tagName === 'INPUT' && el.type === 'password') el.value = '';
