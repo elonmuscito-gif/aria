@@ -183,20 +183,7 @@ authRouter.get("/confirm", async (req, res) => {
       [user.id]
     );
 
-    // Generate API key
-    const apiKey = randomUUID();
-    const keySha256 = createHash("sha256").update(apiKey).digest("hex");
-    const keyHash = await bcrypt.hash(apiKey, 10);
-
-    await query(
-      `INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [randomUUID(), keyHash, keySha256, "auto-generated", user.email, user.id]
-    );
-
-    // Serve an HTML page that saves the key to localStorage then redirects
-    const userPayload = JSON.stringify({ email: user.email, name: user.name });
-    return res.send(confirmPageHtml('success', '', apiKey, userPayload));
+    return res.redirect('/app?confirmed=1');
   } catch (e) {
     console.error("[auth] Confirm error:", e instanceof Error ? e.message : "Unknown");
     res.status(500).send(confirmPageHtml('error', 'Service unavailable. Please try again.'));

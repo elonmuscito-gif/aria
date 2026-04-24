@@ -766,7 +766,7 @@
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+        <input type="password" id="login-password" placeholder="••••••••" required autocomplete="off">
       </div>
       <button type="submit" class="btn" id="login-btn">Sign In</button>
     </form>
@@ -1058,6 +1058,9 @@
       document.getElementById('auth-tabs').classList.add('hidden');
       document.getElementById('confirm-pending').classList.remove('hidden');
       clearAlert();
+      document.getElementById('register-name').value = '';
+      document.getElementById('register-email').value = '';
+      document.getElementById('register-password').value = '';
     } catch (err) {
       showAlert(err.message);
     } finally {
@@ -1399,16 +1402,18 @@
   }
 
   // ── INIT ──────────────────────────────────────────────────────────────────
+  // FIX 4: Clear all forms and password fields on page load
+  document.querySelectorAll('form, input').forEach(el => {
+    if (el.tagName === 'FORM') el.reset();
+    if (el.tagName === 'INPUT' && el.type === 'password') el.value = '';
+  });
+
   // Handle email confirmation redirect: /app?confirmed=1
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('confirmed') === '1') {
     window.history.replaceState({}, '', '/app');
-    if (apiKey) {
-      showDashboard();
-    } else {
-      showAuthTab('login');
-      showAlert('Email confirmed! Sign in to access your dashboard.', 'success');
-    }
+    showAuthTab('login');
+    showAlert('Email confirmed! Please sign in.', 'success');
   } else if (apiKey) {
     // Validate existing session
     apiCall('/v1/agents')
