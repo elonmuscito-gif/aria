@@ -3,7 +3,7 @@ import { randomUUID, createHash, randomBytes } from "crypto";
 import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
 import { query } from "../db/pool.js";
-import { requireApiKey, invalidateCacheByApiKeyId } from "../middleware/auth.js";
+import { requireApiKey } from "../middleware/auth.js";
 import { sendConfirmationEmail, sendVerificationCode } from "../services/email.js";
 
 export const authRouter = Router();
@@ -322,28 +322,31 @@ authRouter.post("/verify-code", async (req, res) => {
       [user.id]
     );
 
-    // Revoke old keys and issue a fresh one — we can't recover the plaintext of previous keys
-    const oldKeys = await query<{ id: string }>(
-      "SELECT id FROM api_keys WHERE user_id = $1 AND revoked_at IS NULL",
+    // Return existing active key indicator, or issue a fresh one if none exists.
+    // Never revoke keys on login — that would break saved keys.
+    const existingKey = await query<{ id: string }>(
+      "SELECT id FROM api_keys WHERE user_id = $1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
       [user.id]
     );
-    for (const row of oldKeys.rows) {
-      await query("UPDATE api_keys SET revoked_at = NOW() WHERE id = $1", [row.id]);
-      invalidateCacheByApiKeyId(row.id);
+
+    let responseApiKey: string | null;
+    if (existingKey.rows[0]) {
+      // Active key exists — plaintext is not recoverable (stored as bcrypt hash only)
+      responseApiKey = null;
+    } else {
+      const newKey = randomUUID();
+      const keySha256 = createHash("sha256").update(newKey).digest("hex");
+      const keyHash = await bcrypt.hash(newKey, 10);
+      await query(
+        `INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email, user_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [randomUUID(), keyHash, keySha256, "session", user.email, user.id]
+      );
+      responseApiKey = newKey;
     }
 
-    const apiKey = randomUUID();
-    const keySha256 = createHash("sha256").update(apiKey).digest("hex");
-    const keyHash = await bcrypt.hash(apiKey, 10);
-
-    await query(
-      `INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [randomUUID(), keyHash, keySha256, "session", user.email, user.id]
-    );
-
     res.json({
-      api_key: apiKey,
+      api_key: responseApiKey,
       user: { id: user.id, email: user.email, name: user.name },
     });
   } catch (e) {
