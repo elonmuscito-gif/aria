@@ -155,6 +155,16 @@ eventsRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: validationError, code: "INVALID_EVENT" });
   }
 
+  const timestampError = validateTimestamp(event.timestamp);
+  if (timestampError) {
+    logEvent("warn", "Rejected single event due to timestamp skew", {
+      apiKeyId: req.apiKeyId,
+      timestamp: event.timestamp,
+      event: summarizeEvent(event),
+    });
+    return res.status(400).json(timestampError);
+  }
+
   try {
     logEvent("log", "Starting single event ingestion", {
       apiKeyId: req.apiKeyId,
@@ -276,6 +286,12 @@ eventsRouter.post("/batch", async (req, res) => {
     const validationError = validateEvent(event);
     if (validationError) {
       rejected.push({ eventId: event.eventId ?? "unknown", reason: validationError });
+      continue;
+    }
+
+    const timestampError = validateTimestamp(event.timestamp);
+    if (timestampError) {
+      rejected.push({ eventId: event.eventId ?? "unknown", reason: timestampError.error });
       continue;
     }
 
@@ -536,6 +552,19 @@ function verifySignatureV2(event: IncomingEvent, shareA: string): boolean {
   } catch {
     return false;
   }
+}
+
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+function validateTimestamp(timestamp: string): { error: string; code: string } | null {
+  const eventTime = new Date(timestamp).getTime();
+  if (Math.abs(Date.now() - eventTime) > FIVE_MINUTES_MS) {
+    return {
+      error: 'Event timestamp too old or too far in future. Max skew: 5 minutes',
+      code: 'TIMESTAMP_EXPIRED',
+    };
+  }
+  return null;
 }
 
 function validateEvent(e: Partial<IncomingEvent>): string | null {
