@@ -83,11 +83,30 @@ COUNT(*) FILTER (WHERE (meta->>'hardware_conflict')::boolean = true) AS hardware
   
   const successRate = newTotal > 0 ? ((newSuccess / newTotal) * 100).toFixed(2) : null;
 
+  // --- THE BRAIN: FINAL SCORE CALCULATION ---
+  // 1. Success adds +1 point
+  const successPoints = newSuccess;
+
+  // 2. Normal errors subtract -1 (Forgivable)
+  const errorPoints = newErrors * -1;
+
+  // 3. Scope anomalies subtract -5 (Danger)
+  const anomalyPoints = newAnomalies * -5;
+
+  // 4. Capital crimes (Hardware or Fake signatures) subtract -100 (Near death)
+  const criticalPoints = (newScopeViolations + newHardwareConflicts) * -100;
+
+  // Score cannot be less than 0 or greater than 100
+  const finalScore = Math.max(0, Math.min(100, successPoints + errorPoints + anomalyPoints + criticalPoints));
+
+  const trustLevel = finalScore >= 80 ? 'TRUSTED' : finalScore >= 50 ? 'NEUTRAL' : 'UNTRUSTED';
+
   await query(
     `INSERT INTO reputation_snapshots
        (agent_id, total_events, success_count, error_count, anomaly_count,
-        scope_violation_count, hardware_conflict_count, success_rate, top_actions, last_computed_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'[]',NOW())
+        scope_violation_count, hardware_conflict_count, success_rate, top_actions,
+        final_score, trust_level, last_computed_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'[]',$9,$10,NOW())
      ON CONFLICT (agent_id) DO UPDATE SET
        total_events             = EXCLUDED.total_events,
        success_count            = EXCLUDED.success_count,
@@ -97,26 +116,13 @@ COUNT(*) FILTER (WHERE (meta->>'hardware_conflict')::boolean = true) AS hardware
        hardware_conflict_count  = EXCLUDED.hardware_conflict_count,
        success_rate             = EXCLUDED.success_rate,
        top_actions              = EXCLUDED.top_actions,
+       final_score              = EXCLUDED.final_score,
+       trust_level              = EXCLUDED.trust_level,
        last_computed_at         = NOW()`,
     [agentId, newTotal, newSuccess, newErrors, newAnomalies,
-     newScopeViolations, newHardwareConflicts, successRate],
+     newScopeViolations, newHardwareConflicts, successRate,
+     finalScore, trustLevel],
   );
-
-  // --- THE BRAIN: FINAL SCORE CALCULATION ---
-  // 1. Success adds +1 point
-  const successPoints = newSuccess;
-  
-  // 2. Normal errors subtract -1 (Forgivable)
-  const errorPoints = newErrors * -1;
-  
-  // 3. Scope anomalies subtract -5 (Danger)
-  const anomalyPoints = newAnomalies * -5;
-  
-  // 4. Capital crimes (Hardware or Fake signatures) subtract -100 (Near death)
-  const criticalPoints = (newScopeViolations + newHardwareConflicts) * -100;
-
-  // Score cannot be less than 0 or greater than 100
-  const finalScore = Math.max(0, Math.min(100, successPoints + errorPoints + anomalyPoints + criticalPoints));
 
   // --- THE TRACTOR: Sync to public table for the web ---
   syncToPublicTable(agentId, finalScore).catch(() => {});

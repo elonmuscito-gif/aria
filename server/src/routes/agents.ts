@@ -199,6 +199,8 @@ agentsRouter.get("/:did", async (req, res) => {
       anomaly_count: number;
       success_rate: string | null;
       top_actions: Array<{ action: string; count: number }> | null;
+      final_score: number | null;
+      trust_level: string | null;
     }>(
       `SELECT
          a.did, a.name, a.scope, a.created_at, a.last_seen, a.meta,
@@ -206,7 +208,8 @@ agentsRouter.get("/:did", async (req, res) => {
          COALESCE(r.success_count, 0)  AS success_count,
          COALESCE(r.error_count, 0)    AS error_count,
          COALESCE(r.anomaly_count, 0)  AS anomaly_count,
-         r.success_rate, r.top_actions
+         r.success_rate, r.top_actions,
+         r.final_score, r.trust_level
        FROM agents a
        LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
        WHERE a.did = $1 AND a.api_key_id = $2`,
@@ -243,6 +246,8 @@ agentsRouter.get("/:did", async (req, res) => {
       anomaly_count: row.anomaly_count,
       success_rate: row.success_rate,
       top_actions: row.top_actions,
+      trustScore: row.final_score,
+      trustLevel: row.trust_level,
     };
 
     return res.json({ agent: responseAgent });
