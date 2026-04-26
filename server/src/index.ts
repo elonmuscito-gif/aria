@@ -57,7 +57,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
-  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
+  store: _redis ? (() => { try { return new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }); } catch { console.warn('[rate-limit] Redis store failed, using memory'); return undefined; } })() : undefined,
   message: 'Too many requests from your network, please try again later.',
 });
 
@@ -67,7 +67,7 @@ const setupLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
-  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
+  store: _redis ? (() => { try { return new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }); } catch { console.warn('[rate-limit] Redis store failed, using memory'); return undefined; } })() : undefined,
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many setup attempts. Try again in 1 hour.',

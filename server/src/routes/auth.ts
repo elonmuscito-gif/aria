@@ -29,7 +29,7 @@ const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
-  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
+  store: _redis ? (() => { try { return new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }); } catch { console.warn('[rate-limit] Redis store failed, using memory'); return undefined; } })() : undefined,
   message: { error: "Too many auth requests. Try again later.", code: "RATE_LIMITED" },
 });
 
@@ -39,7 +39,7 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
-  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
+  store: _redis ? (() => { try { return new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }); } catch { console.warn('[rate-limit] Redis store failed, using memory'); return undefined; } })() : undefined,
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many login attempts. Try again in 15 minutes.',
@@ -54,7 +54,7 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
-  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
+  store: _redis ? (() => { try { return new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }); } catch { console.warn('[rate-limit] Redis store failed, using memory'); return undefined; } })() : undefined,
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many registration attempts. Try again in 1 hour.',
