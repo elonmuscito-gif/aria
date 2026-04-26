@@ -22,11 +22,17 @@ const normalizeIP = (ip: string | undefined): string => {
   return ip.replace(/^::ffff:/, '');
 };
 
+const getRateLimitKey = (req: express.Request): string => {
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (cfIp && typeof cfIp === 'string') return cfIp;
+  return normalizeIP(req.ip);
+};
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.disable("x-powered-by");
 
 app.use((req, _res, next) => {
-  const ip = normalizeIP(req.ip);
+  const ip = getRateLimitKey(req);
 
   if (blockedIPs.has(ip)) {
     return;
@@ -65,7 +71,7 @@ const membraneLimit = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => normalizeIP(req.ip),
+  keyGenerator: (req) => getRateLimitKey(req),
   handler: (_req, _res) => {},
 });
 

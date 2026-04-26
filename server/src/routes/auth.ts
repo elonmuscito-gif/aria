@@ -13,12 +13,18 @@ const normalizeIP = (ip: string | undefined): string => {
   return ip.replace(/^::ffff:/, '');
 };
 
+const getRateLimitKey = (req: import("express").Request): string => {
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (cfIp && typeof cfIp === 'string') return cfIp;
+  return normalizeIP(req.ip);
+};
+
 const authRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => normalizeIP(req.ip),
+  keyGenerator: (req) => getRateLimitKey(req),
   message: { error: "Too many auth requests. Try again later.", code: "RATE_LIMITED" },
 });
 
@@ -27,7 +33,7 @@ const loginLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => normalizeIP(req.ip),
+  keyGenerator: (req) => getRateLimitKey(req),
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many login attempts. Try again in 15 minutes.',
@@ -41,7 +47,7 @@ const registerLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => normalizeIP(req.ip),
+  keyGenerator: (req) => getRateLimitKey(req),
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many registration attempts. Try again in 1 hour.',

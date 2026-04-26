@@ -41,12 +41,18 @@ const normalizeIP = (ip: string | undefined): string => {
   return ip.replace(/^::ffff:/, '');
 };
 
+const getRateLimitKey = (req: express.Request): string => {
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (cfIp && typeof cfIp === 'string') return cfIp;
+  return normalizeIP(req.ip);
+};
+
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 1500,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => normalizeIP(req.ip),
+  keyGenerator: (req) => getRateLimitKey(req),
   message: 'Too many requests from your network, please try again later.',
 });
 
@@ -55,7 +61,7 @@ const setupLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => normalizeIP(req.ip),
+  keyGenerator: (req) => getRateLimitKey(req),
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many setup attempts. Try again in 1 hour.',
