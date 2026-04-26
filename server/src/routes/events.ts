@@ -428,7 +428,9 @@ eventsRouter.post("/batch", async (req, res) => {
 eventsRouter.get("/", async (req, res) => {
   try {
     const { agentDid, limit = "50", cursor, outcome } = req.query as Record<string, string>;
-    const pageLimit = Math.min(parseInt(limit, 10) || 50, 200);
+    const MAX_LIMIT = 100;
+    const requestedLimit = parseInt(limit, 10) || 10;
+    const pageLimit = Math.min(requestedLimit, MAX_LIMIT);
     logEvent("log", "Listing events", {
       apiKeyId: req.apiKeyId,
       agentDid,

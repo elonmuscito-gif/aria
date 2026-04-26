@@ -21,7 +21,13 @@ const loginLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many login attempts. Try again later.", code: "RATE_LIMITED" },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many login attempts. Try again in 15 minutes.',
+      code: 'RATE_LIMITED'
+    });
+  }
 });
 
 const registerLimiter = rateLimit({
@@ -29,7 +35,13 @@ const registerLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many registration attempts. Try again later.", code: "RATE_LIMITED" },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many registration attempts. Try again in 1 hour.',
+      code: 'RATE_LIMITED'
+    });
+  }
 });
 
 authRouter.use(authRateLimiter);
@@ -91,7 +103,7 @@ function validateLoginInput(
 
 // ─── POST /v1/auth/register ───────────────────────────────────────────────────
 // Creates user, sends confirmation email. API key is NOT issued until email confirmed.
-authRouter.post("/register", validateRegisterInput, registerLimiter, async (req, res) => {
+authRouter.post("/register", registerLimiter, validateRegisterInput, async (req, res) => {
   console.log('[auth] Register endpoint hit with email:', req.body?.email);
   const { email, password, name } = req.body as { email: string; password: string; name?: string };
 
@@ -232,7 +244,7 @@ window.location.href = '/app?confirmed=1';
 
 // ─── POST /v1/auth/login ──────────────────────────────────────────────────────
 // Step 1 of 2FA: validates password, sends 6-digit code to email.
-authRouter.post("/login", validateLoginInput, loginLimiter, async (req, res) => {
+authRouter.post("/login", loginLimiter, validateLoginInput, async (req, res) => {
   const { email, password } = req.body as { email: string; password: string };
 
   try {

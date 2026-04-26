@@ -49,7 +49,13 @@ const setupLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many attempts. Try again later.", code: "RATE_LIMITED" },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many setup attempts. Try again in 1 hour.',
+      code: 'RATE_LIMITED'
+    });
+  }
 });
 
 const SETUP_KEY = process.env.SETUP_KEY;
@@ -88,6 +94,19 @@ app.get('/app/', (_req, res) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use(express.json({ limit: "1mb" }));
+
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    const ct = req.headers['content-type'] || '';
+    if (!ct.includes('application/json')) {
+      return res.status(400).json({
+        error: 'Content-Type must be application/json',
+        code: 'INVALID_CONTENT_TYPE'
+      });
+    }
+  }
+  next();
+});
 
 app.use((req, _res, next) => {
   if (!req.body || typeof req.body !== 'object') return next();
@@ -258,14 +277,25 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Not found", code: "NOT_FOUND" });
 });
 
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err.type === 'entity.parse.failed' ||
+      (err instanceof SyntaxError && 'body' in err)) {
+    return res.status(400).json({
+      error: 'Invalid request body',
+      code: 'INVALID_JSON'
+    });
+  }
+  next(err);
+});
+
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("[server] Unhandled error:", err.message);
-  
+
   if (err.message === "request entity too large") {
     res.status(413).json({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" });
     return;
   }
-  
+
   res.status(500).json({ error: "Internal server error", code: "INTERNAL_ERROR", details: err.message });
 });
 

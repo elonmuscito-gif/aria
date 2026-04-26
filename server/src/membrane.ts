@@ -20,34 +20,23 @@ const blockedIPs = new Set<string>();
 app.use(helmet({ contentSecurityPolicy: false }));
 app.disable("x-powered-by");
 
-app.use((req, res, next) => {
-  const ip = req.ip ?? "";
+app.use((req, _res, next) => {
+  const ip = req.ip ?? '';
+
   if (blockedIPs.has(ip)) {
     return;
   }
-  next();
-});
-
-app.use((req, _res, next) => {
-  const ip = req.ip ?? "";
-  const path = req.path;
 
   const suspiciousPatterns = [
-    "/admin",
-    "/internal",
-    "/debug",
-    "/test",
-    "/config",
-    "/env",
-    "/.env",
-    "/api/v1/internal",
-    "/swagger",
-    "/graphql",
-    "/actuator",
+    '/admin', '/internal', '/debug', '/test',
+    '/config', '/.env', '/swagger', '/graphql',
+    '/actuator', '/api/internal', '/wp-admin',
+    '/phpmyadmin', '/manager', '/console', '/.git',
+    '/backup', '/shell'
   ];
 
-  const isSuspicious = suspiciousPatterns.some((p) =>
-    path.toLowerCase() === p || path.toLowerCase().startsWith(p + "/")
+  const isSuspicious = suspiciousPatterns.some(p =>
+    req.path === p || req.path.startsWith(p + '/')
   );
 
   if (isSuspicious) {
@@ -56,7 +45,8 @@ app.use((req, _res, next) => {
 
     if (count >= SCAN_THRESHOLD) {
       blockedIPs.add(ip);
-      console.warn(`[membrane] Blocked IP ${ip} after ${count} suspicious requests`);
+      scanningIPs.delete(ip);
+      console.warn(`[membrane] IP ${ip} blocked after ${count} suspicious requests`);
     }
 
     return;
@@ -128,6 +118,7 @@ app.use(
 
 setInterval(() => {
   scanningIPs.clear();
+  console.log('[membrane] Cleared scanning IP cache');
 }, 10 * 60 * 1000);
 
 // Wait for internal server with proper async delays
