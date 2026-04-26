@@ -2,6 +2,8 @@ import { Router } from "express";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import { getRedisClient } from "../utils/redis.js";
 import { query } from "../db/pool.js";
 import { requireApiKey } from "../middleware/auth.js";
 import { sendConfirmationEmail, sendVerificationCode } from "../services/email.js";
@@ -19,12 +21,15 @@ const getRateLimitKey = (req: import("express").Request): string => {
   return normalizeIP(req.ip);
 };
 
+const _redis = getRedisClient();
+
 const authRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
+  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
   message: { error: "Too many auth requests. Try again later.", code: "RATE_LIMITED" },
 });
 
@@ -34,6 +39,7 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
+  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many login attempts. Try again in 15 minutes.',
@@ -48,6 +54,7 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
+  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many registration attempts. Try again in 1 hour.',

@@ -17,6 +17,8 @@ import { webhooksRouter } from "./routes/webhooks.js";
 import { requireApiKey, invalidateCacheByApiKeyId } from "./middleware/auth.js";
 import { checkHealth, query } from "./db/pool.js";
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import { getRedisClient } from './utils/redis.js';
 
 // 2. MANEJO DE ERRORES CRÍTICOS
 process.on("uncaughtException", (err) => {
@@ -47,12 +49,15 @@ const getRateLimitKey = (req: express.Request): string => {
   return normalizeIP(req.ip);
 };
 
+const _redis = getRedisClient();
+
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 1500,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
+  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
   message: 'Too many requests from your network, please try again later.',
 });
 
@@ -62,6 +67,7 @@ const setupLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
+  store: _redis ? new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }) : undefined,
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many setup attempts. Try again in 1 hour.',
