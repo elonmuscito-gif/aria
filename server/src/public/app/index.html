@@ -811,7 +811,9 @@
         Click it to activate your account and start using ARIA.
       </p>
       <hr class="divider">
-      <button class="btn btn-outline btn-sm" style="width:auto;margin-top:4px"
+      <button id="resend-pending-btn" class="btn btn-outline btn-sm" style="width:auto;margin-top:4px"
+              onclick="handleResendConfirmationPending()">Resend confirmation email</button>
+      <button class="btn btn-outline btn-sm" style="width:auto;margin-top:8px"
               onclick="showAuthTab('login')">Back to sign in</button>
     </div>
   </div>
@@ -926,8 +928,9 @@
   let currentUser = (() => {
     try { return JSON.parse(localStorage.getItem('aria_user') || 'null'); } catch { return null; }
   })();
-  let pendingLoginEmail = '';
-  let currentTab        = 'overview';
+  let pendingLoginEmail    = '';
+  let pendingRegisterEmail = '';
+  let currentTab           = 'overview';
   let selectedAgentDid  = null;
   let refreshInterval   = null;
 
@@ -953,6 +956,43 @@
 
   function clearAlert() {
     document.getElementById('auth-alert').classList.add('hidden');
+  }
+
+  function showUnverifiedAlert(email, message) {
+    const el = document.getElementById('auth-alert');
+    el.className = 'alert alert-error';
+    el.classList.remove('hidden');
+    el.innerHTML = '';
+    const p = document.createElement('p');
+    p.textContent = message;
+    el.appendChild(p);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm btn-outline';
+    btn.style.marginTop = '8px';
+    btn.textContent = 'Resend confirmation email';
+    btn.addEventListener('click', () => handleResendConfirmation(email, btn));
+    el.appendChild(btn);
+  }
+
+  async function handleResendConfirmation(email, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+    try {
+      const res = await fetch(`${API_BASE}/v1/auth/resend-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      showAlert(data.message || 'Confirmation email sent. Check your inbox.', 'success');
+    } catch {
+      showAlert('Failed to send. Please try again.');
+    }
+  }
+
+  async function handleResendConfirmationPending() {
+    const btn = document.getElementById('resend-pending-btn');
+    await handleResendConfirmation(pendingRegisterEmail, btn);
   }
 
   function showDashboardNotice(msg, type = 'success') {
@@ -987,7 +1027,13 @@
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || 'Sign in failed');
+      if (!res.ok) {
+        if (data.code === 'EMAIL_NOT_VERIFIED') {
+          showUnverifiedAlert(email, data.error || 'Please confirm your email first.');
+          return;
+        }
+        throw new Error(data.error || 'Sign in failed');
+      }
 
       pendingLoginEmail = email;
       // Show code input step
@@ -1075,10 +1121,13 @@
       if (!res.ok) throw new Error(data.error || 'Registration failed');
 
       // Show confirmation-pending message
+      pendingRegisterEmail = email;
       document.getElementById('register-form').classList.add('hidden');
       document.getElementById('auth-tabs').classList.add('hidden');
       document.getElementById('confirm-pending').classList.remove('hidden');
       clearAlert();
+      document.getElementById('resend-pending-btn').disabled = false;
+      document.getElementById('resend-pending-btn').textContent = 'Resend confirmation email';
       document.getElementById('register-name').value = '';
       document.getElementById('register-email').value = '';
       document.getElementById('register-password').value = '';

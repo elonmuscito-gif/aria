@@ -63,6 +63,21 @@ const registerLimiter = rateLimit({
   }
 });
 
+const resendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getRateLimitKey(req),
+  store: _redis ? (() => { try { return new RedisStore({ sendCommand: (...args: string[]) => (_redis as any).call(...args) }); } catch { console.warn('[rate-limit] Redis store failed, using memory'); return undefined; } })() : undefined,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many resend attempts. Try again in 1 hour.',
+      code: 'RATE_LIMITED'
+    });
+  }
+});
+
 authRouter.use(authRateLimiter);
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -260,6 +275,50 @@ window.location.href = '/app?confirmed=1';
 <a href="/app" style="color:#0a0a0a;font-size:14px">← Back to sign in</a>
 </body></html>`;
 }
+
+// ─── POST /v1/auth/resend-confirmation ───────────────────────────────────────
+// Generates a fresh confirmation token and re-sends the email.
+// Always returns 200 to avoid revealing whether an account exists.
+authRouter.post("/resend-confirmation", resendLimiter, async (req, res) => {
+  const { email } = req.body as { email?: string };
+
+  const SAFE_RESPONSE = { message: "If your email is pending confirmation, a new link has been sent." };
+
+  if (!email || typeof email !== "string" || !EMAIL_REGEX.test(email) || email.length > 254) {
+    return res.status(200).json(SAFE_RESPONSE);
+  }
+
+  try {
+    const result = await query<{ id: string; email_verified: boolean; name: string | null }>(
+      "SELECT id, email_verified, name FROM users WHERE email = $1",
+      [email.toLowerCase()]
+    );
+
+    const user = result.rows[0];
+    if (!user || user.email_verified) {
+      return res.status(200).json(SAFE_RESPONSE);
+    }
+
+    const confirmationToken = randomBytes(32).toString('hex');
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await query(
+      "UPDATE users SET confirmation_token = $1, confirmation_token_expires = $2 WHERE id = $3",
+      [confirmationToken, tokenExpires, user.id]
+    );
+
+    try {
+      await sendConfirmationEmail(email.toLowerCase(), user.name || email, confirmationToken);
+    } catch (err) {
+      console.error('[auth] Resend confirmation email error:', err instanceof Error ? err.message : err);
+    }
+
+    return res.status(200).json(SAFE_RESPONSE);
+  } catch (e) {
+    console.error("[auth] Resend-confirmation error:", e instanceof Error ? e.message : "Unknown");
+    res.status(500).json({ error: "Service unavailable", code: "RESEND_ERROR" });
+  }
+});
 
 // ─── POST /v1/auth/login ──────────────────────────────────────────────────────
 // Step 1 of 2FA: validates password, sends 6-digit code to email.
