@@ -17,11 +17,16 @@ const scanningIPs = new Map<string, number>();
 const SCAN_THRESHOLD = 10;
 const blockedIPs = new Set<string>();
 
+const normalizeIP = (ip: string | undefined): string => {
+  if (!ip) return 'unknown';
+  return ip.replace(/^::ffff:/, '');
+};
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.disable("x-powered-by");
 
 app.use((req, _res, next) => {
-  const ip = req.ip ?? '';
+  const ip = normalizeIP(req.ip);
 
   if (blockedIPs.has(ip)) {
     return;
@@ -60,6 +65,7 @@ const membraneLimit = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => normalizeIP(req.ip),
   handler: (_req, _res) => {},
 });
 

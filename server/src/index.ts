@@ -36,11 +36,17 @@ const PORT = process.env.PORT || 3001;
 // Trust proxy for Railway (handles X-Forwarded-For header)
 app.set('trust proxy', 1);
 
+const normalizeIP = (ip: string | undefined): string => {
+  if (!ip) return 'unknown';
+  return ip.replace(/^::ffff:/, '');
+};
+
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 1500, 
+  max: 1500,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => normalizeIP(req.ip),
   message: 'Too many requests from your network, please try again later.',
 });
 
@@ -49,7 +55,7 @@ const setupLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => normalizeIP(req.ip),
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many setup attempts. Try again in 1 hour.',

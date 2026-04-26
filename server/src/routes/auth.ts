@@ -8,11 +8,17 @@ import { sendConfirmationEmail, sendVerificationCode } from "../services/email.j
 
 export const authRouter = Router();
 
+const normalizeIP = (ip: string | undefined): string => {
+  if (!ip) return 'unknown';
+  return ip.replace(/^::ffff:/, '');
+};
+
 const authRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => normalizeIP(req.ip),
   message: { error: "Too many auth requests. Try again later.", code: "RATE_LIMITED" },
 });
 
@@ -21,7 +27,7 @@ const loginLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => normalizeIP(req.ip),
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many login attempts. Try again in 15 minutes.',
@@ -35,7 +41,7 @@ const registerLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => normalizeIP(req.ip),
   handler: (_req, res) => {
     res.status(429).json({
       error: 'Too many registration attempts. Try again in 1 hour.',
