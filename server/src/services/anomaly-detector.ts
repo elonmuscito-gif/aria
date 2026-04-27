@@ -14,30 +14,20 @@ export async function recordAnomaly(params: {
   const { agentId, eventId, action, type } = params;
 
   try {
-    // 1. Check how many anomalies this agent has to prevent disk DoS
-    const countResult = await query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM anomalies WHERE agent_id = $1`,
-      [agentId],
-    );
-
-    const currentCount = parseInt(countResult.rows[0]?.count || "0", 10);
-
-    if (currentCount >= MAX_ANOMALIES_PER_AGENT) {
-      // Agent already has too many anomalies recorded.
-      // Skip to protect ARIA's disk.
-      // The original event is already stored in the 'events' table with its meta.
-      return;
-    }
-
-    // 2. If we have space, record the anomaly
     // event_id column is UUID — skip if the caller passed a non-UUID string
     const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
     if (!isValidUUID) return;
 
+    // Atomic INSERT: count check + insert in one statement, no race condition possible
     await query(
-      `INSERT INTO anomalies (event_id, agent_id, action)
-       VALUES ($1, $2, $3)`,
-      [eventId, agentId, action],
+      `INSERT INTO anomalies (event_id, agent_id, action, detected_at, acknowledged)
+       SELECT $1, $2, $3, NOW(), false
+       WHERE (
+         SELECT COUNT(*) FROM anomalies
+         WHERE agent_id = $2
+         AND acknowledged = false
+       ) < $4`,
+      [eventId, agentId, action, MAX_ANOMALIES_PER_AGENT],
     );
 
     console.warn(`[anomaly-detector] Recorded ${type} for agent ${agentId}`);

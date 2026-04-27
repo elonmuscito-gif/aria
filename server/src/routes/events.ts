@@ -266,8 +266,8 @@ eventsRouter.post("/batch", async (req, res) => {
   };
 
   const firstEvent = events[0]!;
-  const agentLookup = await query<{ id: string; scope: string[]; hmac_key: string | null; meta: Record<string, unknown> | null; signing_version: number }>(
-    `SELECT id, scope, hmac_key, meta, signing_version FROM agents WHERE did = $1 AND api_key_id = $2`,
+  const agentLookup = await query<{ id: string; did: string; scope: string[]; hmac_key: string | null; meta: Record<string, unknown> | null; signing_version: number }>(
+    `SELECT id, did, scope, hmac_key, meta, signing_version FROM agents WHERE did = $1 AND api_key_id = $2`,
     [firstEvent.agentDid, req.apiKeyId],
   );
 
@@ -277,7 +277,7 @@ eventsRouter.post("/batch", async (req, res) => {
 
   const row = agentLookup.rows[0]!;
   const agentId = row.id;
-  const decryptedHmacKey = row.hmac_key ? decryptSecret(row.hmac_key) : null;
+  const decryptedHmacKey = row.hmac_key ? decryptSecret(row.hmac_key, row.did) : null;
   const storedShareC = typeof row.meta?.dts_share_c === "string" ? row.meta.dts_share_c : null;
 
   const validatedEvents: Array<{ event: typeof events[number]; serverWithinScope: boolean; signatureValid: boolean; finalMeta: Record<string, unknown> | null }> = [];
@@ -593,8 +593,8 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
     agentDid: event.agentDid,
   });
 
-  const agent = await query<{ id: string; scope: string[]; hmac_key: string | null; meta: Record<string, unknown> | null; signing_version: number }>(
-    `SELECT id, scope, hmac_key, meta, signing_version FROM agents WHERE did = $1 AND api_key_id = $2`,
+  const agent = await query<{ id: string; did: string; scope: string[]; hmac_key: string | null; meta: Record<string, unknown> | null; signing_version: number }>(
+    `SELECT id, did, scope, hmac_key, meta, signing_version FROM agents WHERE did = $1 AND api_key_id = $2`,
     [event.agentDid, apiKeyId],
   );
 
@@ -607,8 +607,8 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
     throw new Error("AGENT_NOT_FOUND");
   }
 
-  const { id: agentId, scope, hmac_key: rawHmacKey, meta: agentMeta, signing_version: signingVersion } = agent.rows[0]!;
-  const decryptedHmacKey = rawHmacKey ? decryptSecret(rawHmacKey) : null;
+  const { id: agentId, did: agentDid, scope, hmac_key: rawHmacKey, meta: agentMeta, signing_version: signingVersion } = agent.rows[0]!;
+  const decryptedHmacKey = rawHmacKey ? decryptSecret(rawHmacKey, agentDid) : null;
   const serverWithinScope = scope.includes(event.action);
   const storedShareC = typeof agentMeta?.dts_share_c === "string" ? agentMeta.dts_share_c : null;
   const eventFp = event.meta && typeof event.meta.hardwareFingerprint === "string" ? event.meta.hardwareFingerprint : null;
