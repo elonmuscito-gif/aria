@@ -102,11 +102,17 @@ hmacKey = partialAKey.toString("hex"); // Database stores the derived key
 
   const encryptedHmacKey = encryptSecret(hmacKey, did);
 
+  const keyResult = await query<{ user_id: string | null }>(
+    'SELECT user_id FROM api_keys WHERE id = $1',
+    [req.apiKeyId]
+  );
+  const userId = keyResult.rows[0]?.user_id ?? null;
+
   const result = await query<{ id: string; created_at: string }>(
-    `INSERT INTO agents (did, name, scope, api_key_id, public_key, secret_hash, hmac_key, meta, signing_version)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO agents (did, name, scope, api_key_id, user_id, public_key, secret_hash, hmac_key, meta, signing_version)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING id, created_at`,
-    [did, name.trim(), scope, req.apiKeyId, publicKey, secretHash, encryptedHmacKey, storedMeta, signingVersion],
+    [did, name.trim(), scope, req.apiKeyId, userId, publicKey, secretHash, encryptedHmacKey, storedMeta, signingVersion],
   );
 
   const agent = result.rows[0]!;
@@ -127,9 +133,15 @@ hmacKey = partialAKey.toString("hex"); // Database stores the derived key
 agentsRouter.get("/", async (req, res) => {
   try {
     const { name } = req.query as { name?: string };
-    
+
+    const keyResult = await query<{ user_id: string | null }>(
+      'SELECT user_id FROM api_keys WHERE id = $1',
+      [req.apiKeyId]
+    );
+    const userId = keyResult.rows[0]?.user_id ?? null;
+
     // Safe parameterized query construction
-    const params: unknown[] = [req.apiKeyId];
+    const params: unknown[] = [userId, req.apiKeyId];
     let sql = `
       SELECT
         a.did, a.name, a.scope, a.created_at, a.last_seen,
@@ -138,7 +150,11 @@ agentsRouter.get("/", async (req, res) => {
         r.success_rate
       FROM agents a
       LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
-      WHERE a.api_key_id = $1
+      WHERE (
+        (a.user_id = $1 AND $1 IS NOT NULL)
+        OR
+        (a.api_key_id = $2 AND $1 IS NULL)
+      )
     `;
 
     if (name && typeof name === "string" && name.trim().length > 0) {
