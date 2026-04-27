@@ -6,7 +6,6 @@
 
 ARIA is the accountability layer the AI industry is missing. Companies deploy AI agents that act on their behalf — sending emails, processing payments, accessing databases. ARIA makes those agents auditable, verifiable, and trustworthy.
 
-**Security audit score: 85/86 (99%)**
 
 ## Quick Start
 
