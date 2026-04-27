@@ -100,7 +100,7 @@ hmacKey = partialAKey.toString("hex"); // Database stores the derived key
     responseCredentials = { secret };
   }
 
-  const encryptedHmacKey = encryptSecret(hmacKey);
+  const encryptedHmacKey = encryptSecret(hmacKey, did);
 
   const result = await query<{ id: string; created_at: string }>(
     `INSERT INTO agents (did, name, scope, api_key_id, public_key, secret_hash, hmac_key, meta, signing_version)
