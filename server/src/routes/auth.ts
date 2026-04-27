@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { getRedisClient } from "../utils/redis.js";
 import { query } from "../db/pool.js";
-import { requireApiKey } from "../middleware/auth.js";
+import { requireApiKey, invalidateCacheByApiKeyId } from "../middleware/auth.js";
 import { sendConfirmationEmail, sendVerificationCode } from "../services/email.js";
 
 export const authRouter = Router();
@@ -412,28 +412,31 @@ authRouter.post("/verify-code", async (req, res) => {
       [user.id]
     );
 
-    // Return existing active key indicator, or issue a fresh one if none exists.
-    // Never revoke keys on login — that would break saved keys.
     const existingKey = await query<{ id: string }>(
       "SELECT id FROM api_keys WHERE user_id = $1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
       [user.id]
     );
 
-    let responseApiKey: string | null;
-    if (existingKey.rows[0]) {
-      // Active key exists — plaintext is not recoverable (stored as bcrypt hash only)
-      responseApiKey = null;
-    } else {
-      const newKey = randomUUID();
-      const keySha256 = createHash("sha256").update(newKey).digest("hex");
-      const keyHash = await bcrypt.hash(newKey, 10);
-      await query(
-        `INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email, user_id)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [randomUUID(), keyHash, keySha256, "session", user.email, user.id]
-      );
-      responseApiKey = newKey;
-    }
+    // Revoke existing keys
+    await query(
+      "UPDATE api_keys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
+      [user.id]
+    );
+
+    // Issue new key
+    const rawKey = randomUUID();
+    const keySha256 = createHash('sha256').update(rawKey).digest('hex');
+    const keyHash = await bcrypt.hash(rawKey, 10);
+
+    await query(
+      `INSERT INTO api_keys (key_hash, key_sha256, label, owner_email, user_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [keyHash, keySha256, 'login', user.email, user.id]
+    );
+
+    if (existingKey.rows[0]) invalidateCacheByApiKeyId(existingKey.rows[0].id);
+
+    const responseApiKey = rawKey;
 
     res.json({
       api_key: responseApiKey,
