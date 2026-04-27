@@ -3,6 +3,7 @@ import path from "path";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import { getRedisClient } from './utils/redis.js';
 
 const app = express();
 const INTERNAL_PORT = 3000;
@@ -13,9 +14,7 @@ const ARIA_INTERNAL = `http://localhost:${INTERNAL_PORT}`;
 // Trust proxy for Railway (handles X-Forwarded-For header)
 app.set('trust proxy', 1);
 
-const scanningIPs = new Map<string, number>();
 const SCAN_THRESHOLD = 10;
-const blockedIPs = new Set<string>();
 
 const normalizeIP = (ip: string | undefined): string => {
   if (!ip) return 'unknown';
@@ -31,11 +30,17 @@ const getRateLimitKey = (req: express.Request): string => {
 app.use(helmet({ contentSecurityPolicy: false }));
 app.disable("x-powered-by");
 
-app.use((req, _res, next) => {
+app.use(async (req, _res, next) => {
   const ip = getRateLimitKey(req);
 
-  if (blockedIPs.has(ip)) {
-    return;
+  try {
+    const redis = getRedisClient();
+    if (redis) {
+      const blocked = await redis.get(`membrane:blocked:${ip}`);
+      if (blocked) return;
+    }
+  } catch (err) {
+    console.warn('[membrane] Redis unavailable for block check, allowing request:', err instanceof Error ? err.message : err);
   }
 
   const suspiciousPatterns = [
@@ -51,13 +56,20 @@ app.use((req, _res, next) => {
   );
 
   if (isSuspicious) {
-    const count = (scanningIPs.get(ip) ?? 0) + 1;
-    scanningIPs.set(ip, count);
+    try {
+      const redis = getRedisClient();
+      if (redis) {
+        const count = await redis.incr(`membrane:scan:${ip}`);
+        await redis.expire(`membrane:scan:${ip}`, 600);
 
-    if (count >= SCAN_THRESHOLD) {
-      blockedIPs.add(ip);
-      scanningIPs.delete(ip);
-      console.warn(`[membrane] IP ${ip} blocked after ${count} suspicious requests`);
+        if (count >= SCAN_THRESHOLD) {
+          await redis.set(`membrane:blocked:${ip}`, '1', 'EX', 86400);
+          await redis.del(`membrane:scan:${ip}`);
+          console.warn(`[membrane] IP ${ip} blocked after ${count} suspicious requests`);
+        }
+      }
+    } catch (err) {
+      console.warn('[membrane] Redis unavailable for scan tracking:', err instanceof Error ? err.message : err);
     }
 
     return;
@@ -127,11 +139,6 @@ app.use(
     },
   })
 );
-
-setInterval(() => {
-  scanningIPs.clear();
-  console.log('[membrane] Cleared scanning IP cache');
-}, 10 * 60 * 1000);
 
 // Wait for internal server with proper async delays
 async function waitForInternalServer(): Promise<boolean> {
