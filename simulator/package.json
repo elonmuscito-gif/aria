@@ -1,0 +1,8 @@
+{
+  "name": "aria-simulator",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node agent.mjs"
+  }
+}
