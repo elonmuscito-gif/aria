@@ -176,3 +176,41 @@ function getZeroTotals(): {
 } {
   return { total: 0, success: 0, errors: 0, anomalies: 0, scopeViolations: 0, hardwareConflicts: 0 };
 }
+
+export async function applyReputationDecay(): Promise<void> {
+  try {
+    const result = await query<{ agent_id: string; final_score: number }>(`
+      SELECT rs.agent_id, rs.final_score
+      FROM reputation_snapshots rs
+      WHERE rs.final_score != 50
+      AND NOT EXISTS (
+        SELECT 1 FROM events e
+        WHERE e.agent_id = rs.agent_id
+        AND e.recorded_at > NOW() - INTERVAL '7 days'
+      )
+    `);
+
+    for (const row of result.rows) {
+      const current = row.final_score;
+      const decay = current > 50 ? -2 : 2;
+      const newScore = Math.max(0, Math.min(100, current + decay));
+      const trustLevel = newScore >= 80 ? 'TRUSTED'
+        : newScore >= 50 ? 'NEUTRAL'
+        : 'UNTRUSTED';
+
+      await query(`
+        UPDATE reputation_snapshots
+        SET final_score = $1, trust_level = $2
+        WHERE agent_id = $3
+      `, [newScore, trustLevel, row.agent_id]);
+    }
+
+    console.log(`[reputation] Decay applied to ${result.rows.length} agents`);
+  } catch (err) {
+    console.error('[reputation] Decay error:',
+      err instanceof Error ? err.message : 'Unknown error');
+  }
+}
+
+setInterval(applyReputationDecay, 24 * 60 * 60 * 1000);
+setTimeout(applyReputationDecay, 60 * 1000);

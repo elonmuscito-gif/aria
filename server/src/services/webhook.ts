@@ -16,14 +16,16 @@ export interface WebhookPayload {
   metadata?: Record<string, unknown>;
 }
 
+const RETRY_DELAYS = [30_000, 120_000, 600_000]; // 30s, 2min, 10min
+
 export async function triggerWebhooks(
   userId: string,
   eventType: string,
   payload: WebhookPayload
 ): Promise<void> {
   try {
-    const result = await query<{ id: string; url: string; secret: string }>(
-      `SELECT id, url, secret FROM webhooks
+    const result = await query<{ id: string; url: string; secret: string; failure_count: number }>(
+      `SELECT id, url, secret, failure_count FROM webhooks
        WHERE user_id = $1
          AND active = true
          AND $2 = ANY(events)`,
@@ -31,7 +33,7 @@ export async function triggerWebhooks(
     );
 
     for (const webhook of result.rows) {
-      await deliverWebhook(webhook, payload);
+      await deliverWithRetry(webhook, payload);
     }
   } catch (err) {
     console.error('[webhook] Failed to trigger webhooks:',
@@ -49,8 +51,9 @@ async function deliverWebhook(
     .update(`${timestamp}.${body}`)
     .digest('hex');
 
+  let response: Response;
   try {
-    const response = await fetch(webhook.url, {
+    response = await fetch(webhook.url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -61,29 +64,38 @@ async function deliverWebhook(
       body,
       signal: AbortSignal.timeout(10000),
     });
-
-    await query(
-      `UPDATE webhooks
-       SET last_triggered_at = NOW(),
-           failure_count = CASE
-             WHEN $2 THEN failure_count
-             ELSE failure_count + 1
-           END
-       WHERE id = $1`,
-      [webhook.id, response.ok]
-    );
-
-    console.log(`[webhook] Delivered to ${webhook.url} — status ${response.status}`);
   } catch (err) {
-    console.error(`[webhook] Failed to deliver to ${webhook.url}:`,
-      err instanceof Error ? err.message : 'Unknown error');
+    await query(`UPDATE webhooks SET failure_count = failure_count + 1 WHERE id = $1`, [webhook.id]);
+    throw err;
+  }
 
-    await query(
-      `UPDATE webhooks
-       SET failure_count = failure_count + 1,
-           active = CASE WHEN failure_count >= 9 THEN false ELSE active END
-       WHERE id = $1`,
-      [webhook.id]
-    );
+  if (!response.ok) {
+    await query(`UPDATE webhooks SET failure_count = failure_count + 1 WHERE id = $1`, [webhook.id]);
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  await query(`UPDATE webhooks SET last_triggered_at = NOW() WHERE id = $1`, [webhook.id]);
+  console.log(`[webhook] Delivered to ${webhook.url} — status ${response.status}`);
+}
+
+async function deliverWithRetry(
+  webhook: { id: string; url: string; secret: string; failure_count: number },
+  payload: WebhookPayload,
+  attempt = 0
+): Promise<void> {
+  try {
+    await deliverWebhook(webhook, payload);
+  } catch {
+    if (attempt < RETRY_DELAYS.length) {
+      const delay = RETRY_DELAYS[attempt]!;
+      console.warn(`[webhook] Retrying in ${delay / 1000}s (attempt ${attempt + 1})`);
+      setTimeout(() => deliverWithRetry(webhook, payload, attempt + 1), delay);
+    } else {
+      console.error(`[webhook] Max retries reached for ${webhook.url}`);
+      await query(
+        `UPDATE webhooks SET active = false WHERE id = $1`,
+        [webhook.id]
+      );
+    }
   }
 }
