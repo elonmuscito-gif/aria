@@ -198,13 +198,94 @@ This identifier is:
 
 ---
 
+## What's Coming
+
+### ARIA Gate — Active Protection for Destructive Actions
+
+Today most AI agent monitoring systems observe and record.
+ARIA Gate intervenes before damage happens.
+
+When an agent attempts a destructive or high-risk action,
+ARIA Gate pauses execution and requires human approval
+before proceeding:
+
+```
+Agent attempts: delete:database
+        ↓
+ARIA Gate intercepts
+        ↓
+Execution paused
+        ↓
+Owner receives alert:
+"Your agent is trying to delete the production database.
+Do you approve this action? [YES] [NO]"
+        ↓
+No response in 5 minutes → automatically blocked
+```
+
+Actions that will always require human approval:
+
+| Action | Risk | Default |
+|--------|------|---------|
+| `delete:*` | Data loss | Block + require approval |
+| `drop:*` | Structure loss | Block + require approval |
+| `transfer:funds` | Financial loss | Block + require approval |
+| `export:bulk` | Data exfiltration | Alert + 60s delay |
+| `modify:permissions` | Privilege escalation | Block + require approval |
+| `send:bulk_email` | Reputation damage | Alert + approval |
+
+The agent cannot bypass these rules.
+The rules live in ARIA — not in the agent's code.
+
+> The PocketOS incident in 2026 — where an AI agent deleted 
+> an entire production database and its backups — would have 
+> been prevented by ARIA Gate.
+
+---
+
+### ARIA Shadow Witness — Independent Verification
+
+An agent can report anything. 
+ARIA Shadow Witness verifies it actually happened.
+
+When an agent reports an action, ARIA Shadow Witness 
+contacts independent sources to confirm:
+
+```
+Agent reports: "I sent the payment successfully"
+        ↓
+ARIA Shadow Witness asks the payment provider:
+"Did you receive a payment from this agent?"
+        ↓
+Payment provider: "No payment received"
+        ↓
+ARIA: Discrepancy detected
+→ Immediate alert to owner
+→ Trust score penalized
+→ Evidence recorded immutably
+```
+
+Independent witnesses can include:
+- Payment processors (Stripe, PayPal)
+- Email providers (SendGrid, AWS SES)
+- Databases (verify records were actually created)
+- External APIs (confirm calls were made)
+- Time authorities (RFC 3161 cryptographic timestamps)
+
+An agent that lies about its actions cannot fool 
+two independent sources simultaneously.
+
+---
+
 ## Roadmap
 
 - [x] **Phase 1** — MVP: DID, HMAC signatures, reputation scoring, audit trail
 - [x] **Phase 2** — Production: Dashboard, 2FA, webhooks, Redis, ARIA Membrane, hardening
-- [ ] **Phase 3** — ARIA Spectrum: Universal event receiver, behavioral fingerprinting, cross-verification
-- [ ] **Phase 4** — ARIA Temporal Anchor: RFC 3161 cryptographic time proofs per event
-- [ ] **Phase 5** — ARIA ZeroProof: Zero-knowledge behavioral compliance proofs
+- [ ] **Phase 3** — ARIA Spectrum: Universal event receiver, behavioral fingerprinting, cross-verification protocol
+- [ ] **Phase 4** — ARIA Gate: Human approval for destructive actions, risk classification, auto-blocking
+- [ ] **Phase 5** — ARIA Shadow Witness: Independent verification of agent-reported actions
+- [ ] **Phase 6** — ARIA Temporal Anchor: RFC 3161 cryptographic time proofs per event
+- [ ] **Phase 7** — ARIA ZeroProof: Zero-knowledge behavioral compliance proofs
 
 ---
 
