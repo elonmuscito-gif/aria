@@ -1,4 +1,4 @@
-import { syncToPublicTable } from "./sync-public-reputation";
+import { syncToPublicTable } from "./sync-public-reputation.js";
 import { query } from "../db/pool.js";
 import { triggerWebhooks } from "./webhook.js";
 

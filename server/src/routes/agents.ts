@@ -202,6 +202,12 @@ agentsRouter.get("/", async (req, res) => {
 
 agentsRouter.get("/:did", async (req, res) => {
   try {
+    const keyResult = await query<{ user_id: string | null }>(
+      'SELECT user_id FROM api_keys WHERE id = $1',
+      [req.apiKeyId]
+    );
+    const userId = keyResult.rows[0]?.user_id ?? null;
+
     const result = await query<{
       did: string;
       name: string;
@@ -228,8 +234,12 @@ agentsRouter.get("/:did", async (req, res) => {
          r.final_score, r.trust_level
        FROM agents a
        LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
-       WHERE a.did = $1 AND a.api_key_id = $2`,
-      [req.params.did, req.apiKeyId],
+       WHERE a.did = $1 AND (
+         (a.user_id = $3 AND $3 IS NOT NULL)
+         OR
+         (a.api_key_id = $2 AND $3 IS NULL)
+       )`,
+      [req.params.did, req.apiKeyId, userId],
     );
 
     if (!result.rows[0]) {

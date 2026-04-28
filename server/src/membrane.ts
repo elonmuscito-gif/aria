@@ -84,10 +84,26 @@ const membraneLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getRateLimitKey(req),
-  handler: (_req, _res) => {},
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many requests',
+      code: 'RATE_LIMITED'
+    });
+  },
 });
 
 app.use(membraneLimit);
+
+app.use((req, res, next) => {
+  const ALLOWED_METHODS = ['GET', 'POST', 'DELETE', 'OPTIONS'];
+  if (!ALLOWED_METHODS.includes(req.method)) {
+    return res.status(405).json({
+      error: 'Method not allowed',
+      code: 'METHOD_NOT_ALLOWED'
+    });
+  }
+  next();
+});
 
 const ALLOWED_PATHS = [
   "/",

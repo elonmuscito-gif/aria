@@ -3,6 +3,7 @@ import { randomUUID, createHash } from "crypto";
 import { fileURLToPath } from "url";
 import path from "path";
 import "dotenv/config";
+import { encryptSecret } from "./utils/crypto.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,7 +34,6 @@ process.on("unhandledRejection", (reason) => {
 
 // 3. CONFIGURACIÓN DE EXPRESS
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 // Trust proxy for Railway (handles X-Forwarded-For header)
 app.set('trust proxy', 1);
@@ -98,10 +98,6 @@ app.get('/', (_req, res) => {
 });
 
 app.get('/app', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'app', 'index.html'));
-});
-
-app.get('/app/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app', 'index.html'));
 });
 
@@ -191,7 +187,8 @@ app.post("/v1/setup", setupLimiter, async (req, res) => {
       await query(
         `INSERT INTO agents (did, name, scope, api_key_id, public_key, secret_hash, hmac_key, signing_version)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [did, name, scope, apiKeyResult.rows[0].id, scope.join("|"), secret, secret, 1]
+        [did, name, scope, apiKeyResult.rows[0].id, scope.join("|"),
+         await bcrypt.hash(secret, 10), encryptSecret(secret, did), 1]
       );
       
       agentResponse = { did, name, scope, secret };

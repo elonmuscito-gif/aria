@@ -5,6 +5,7 @@ import { requireApiKey } from "../middleware/auth.js";
 import { reputationQueue } from "../services/reputation.js";
 import { recordAnomaly } from "../services/anomaly-detector.js";
 import { decryptSecret } from "../utils/crypto.js";
+import { getRedisClient } from "../utils/redis.js";
 
 const SENSITIVE_META_FIELDS = [
   'hardwareFingerprint',
@@ -30,17 +31,25 @@ const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 100;
 
-function checkRateLimit(agentId: string): boolean {
+async function checkRateLimit(agentId: string): Promise<boolean> {
+  const redis = getRedisClient();
+  if (redis) {
+    const key = `ratelimit:agent:${agentId}`;
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, 60);
+    return count > RATE_LIMIT_MAX;
+  }
+  // fallback to memory if Redis unavailable
   const now = Date.now();
   const entry = rateLimitMap.get(agentId);
-  
+
   if (!entry || now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) {
     rateLimitMap.set(agentId, { count: 1, windowStart: now });
     return false;
   }
-  
+
   entry.count++;
-  
+
   if (entry.count > RATE_LIMIT_MAX * 10) {
     rateLimitMap.set(agentId, { count: 1, windowStart: now });
     return false;
@@ -49,18 +58,30 @@ function checkRateLimit(agentId: string): boolean {
   return entry.count > RATE_LIMIT_MAX;
 }
 
-function getRateLimitInfo(agentId: string): { exceeded: boolean; current: number; limit: number; resetsIn: string } {
+async function getRateLimitInfo(agentId: string): Promise<{ exceeded: boolean; current: number; limit: number; resetsIn: string }> {
+  const redis = getRedisClient();
+  if (redis) {
+    const count = parseInt(await redis.get(`ratelimit:agent:${agentId}`) ?? '0');
+    const ttl = await redis.ttl(`ratelimit:agent:${agentId}`);
+    return {
+      exceeded: count > RATE_LIMIT_MAX,
+      current: Math.min(count, RATE_LIMIT_MAX),
+      limit: RATE_LIMIT_MAX,
+      resetsIn: `${Math.max(0, ttl)}s`
+    };
+  }
+  // fallback to memory if Redis unavailable
   const entry = rateLimitMap.get(agentId);
   const now = Date.now();
-  
+
   if (!entry) {
     return { exceeded: false, current: 0, limit: RATE_LIMIT_MAX, resetsIn: "60s" };
   }
-  
+
   const current = entry.count > RATE_LIMIT_MAX ? entry.count - RATE_LIMIT_MAX : entry.count;
   const resetsInMs = (entry.windowStart + RATE_LIMIT_WINDOW_MS) - now;
   const resetsIn = `${Math.ceil(Math.max(0, resetsInMs) / 1000)}s`;
-  
+
   return {
     exceeded: entry.count > RATE_LIMIT_MAX,
     current,
@@ -326,7 +347,7 @@ eventsRouter.post("/batch", async (req, res) => {
       summary.signatureFailures++;
     }
 
-    const rateLimitExceeded = checkRateLimit(agentId);
+    const rateLimitExceeded = await checkRateLimit(agentId);
     if (rateLimitExceeded) {
       summary.rateLimitExceeded++;
     }
@@ -585,7 +606,7 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
   serverWithinScope: boolean;
   signatureValid: boolean;
   scope: string[];
-  rateLimitInfo: ReturnType<typeof getRateLimitInfo>;
+  rateLimitInfo: Awaited<ReturnType<typeof getRateLimitInfo>>;
 }> {
   logEvent("log", "Looking up agent for single event ingestion", {
     apiKeyId,
@@ -659,7 +680,7 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
     agentId,
   });
 
-  const rateLimitExceeded = checkRateLimit(agentId);
+  const rateLimitExceeded = await checkRateLimit(agentId);
   if (rateLimitExceeded) {
     logEvent("warn", "Rate limit exceeded: event accepted but flagged", {
       apiKeyId,
@@ -732,6 +753,6 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
     serverWithinScope,
     signatureValid,
     scope: scope,
-    rateLimitInfo: getRateLimitInfo(agentId),
+    rateLimitInfo: await getRateLimitInfo(agentId),
   };
 }
