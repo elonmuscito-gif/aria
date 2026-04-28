@@ -1,6 +1,7 @@
 # ARIA — Autonomous Registry for Intelligence Accountability
 
-> Trust infrastructure for AI agents. Every agent gets a cryptographic identity, an immutable audit trail, and a verified reputation score.
+> The trust and enforcement infrastructure for AI agents.
+> Observe what agents do. Control what agents are allowed to do.
 
 ## What is ARIA?
 
@@ -200,92 +201,99 @@ This identifier is:
 
 ## What's Coming
 
-### ARIA Gate — Active Protection for Destructive Actions
+ARIA is built in two layers:
 
-Today most AI agent monitoring systems observe and record.
-ARIA Gate intervenes before damage happens.
+**ARIA Core** (available now) — Observability & Trust
+Identity, audit trail, reputation scoring, anomaly detection.
 
-When an agent attempts a destructive or high-risk action,
-ARIA Gate pauses execution and requires human approval
-before proceeding:
+**ARIA Gate** (in development) — Control & Enforcement
+Runtime policy enforcement that stops destructive actions
+before they execute.
 
-```
-Agent attempts: delete:database
-        ↓
-ARIA Gate intercepts
-        ↓
-Execution paused
-        ↓
-Owner receives alert:
-"Your agent is trying to delete the production database.
-Do you approve this action? [YES] [NO]"
-        ↓
-No response in 5 minutes → automatically blocked
-```
+---
 
-Actions that will always require human approval:
+### ARIA Gate — Runtime Enforcement for AI Agents
 
-| Action | Risk | Default |
-|--------|------|---------|
-| `delete:*` | Data loss | Block + require approval |
-| `drop:*` | Structure loss | Block + require approval |
-| `transfer:funds` | Financial loss | Block + require approval |
-| `export:bulk` | Data exfiltration | Alert + 60s delay |
-| `modify:permissions` | Privilege escalation | Block + require approval |
-| `send:bulk_email` | Reputation damage | Alert + approval |
+Most monitoring systems observe and record what agents do.
+ARIA Gate enforces what agents are allowed to do — at runtime,
+before execution reaches external systems.
 
-The agent cannot bypass these rules.
-The rules live in ARIA — not in the agent's code.
+**How it works**
 
-> The PocketOS incident in 2026 — where an AI agent deleted 
-> an entire production database and its backups — would have 
-> been prevented by ARIA Gate.
+ARIA Gate operates as an execution proxy placed between
+the agent and the systems it interacts with.
+All agent actions must pass through ARIA before reaching
+external systems. ARIA enforces policies at runtime by
+allowing, delaying, or blocking execution.
+**Enforcement is guaranteed when ARIA is placed
+in the execution path.** Agents that bypass ARIA
+have no audit trail — which is itself a detectable anomaly.
+
+**Risk classification**
+
+| Action | Risk Level | Enforcement |
+|--------|-----------|-------------|
+| `delete:*` | CRITICAL | Block + human approval required |
+| `drop:*` | CRITICAL | Block + human approval required |
+| `transfer:funds` | CRITICAL | Block + human approval required |
+| `export:bulk` | HIGH | Alert + 60 second delay |
+| `modify:permissions` | HIGH | Block + human approval required |
+| `send:bulk_email` | MEDIUM | Alert + approval |
+| `read:bulk` | LOW | Log + monitor |
+
+These policies live in ARIA — not in the agent's code.
+Developers declare them at registration time.
+Agents cannot modify their own policies.
+
+**On the PocketOS incident (April 2026)**
+
+An AI agent deleted an entire production database and its
+backups — causing millions in damages.
+
+With ARIA Gate in the execution path, `delete:database`
+would have required explicit human approval before execution,
+preventing the automatic deletion from occurring.
 
 ---
 
 ### ARIA Shadow Witness — Independent Verification
 
-An agent can report anything. 
-ARIA Shadow Witness verifies it actually happened.
+An agent can report anything. ARIA Shadow Witness verifies
+it actually happened — by asking independent sources.
 
-When an agent reports an action, ARIA Shadow Witness 
-contacts independent sources to confirm:
+**How it works**
+An agent that misreports its actions cannot simultaneously
+fool the independent witness. The discrepancy is detectable,
+recordable, and provable in court.
 
-```
-Agent reports: "I sent the payment successfully"
-        ↓
-ARIA Shadow Witness asks the payment provider:
-"Did you receive a payment from this agent?"
-        ↓
-Payment provider: "No payment received"
-        ↓
-ARIA: Discrepancy detected
-→ Immediate alert to owner
-→ Trust score penalized
-→ Evidence recorded immutably
-```
+**Supported witness types**
 
-Independent witnesses can include:
-- Payment processors (Stripe, PayPal)
-- Email providers (SendGrid, AWS SES)
-- Databases (verify records were actually created)
-- External APIs (confirm calls were made)
-- Time authorities (RFC 3161 cryptographic timestamps)
+| Witness | What it verifies |
+|---------|-----------------|
+| Payment processors | Transactions actually occurred |
+| Email providers | Messages actually delivered |
+| Databases | Records actually created or modified |
+| External APIs | Calls actually made and responses received |
+| Time authorities | Actions occurred at the claimed timestamp |
 
-An agent that lies about its actions cannot fool 
-two independent sources simultaneously.
+**Why this matters for compliance**
+
+Traditional audit systems trust agent-reported data.
+ARIA Shadow Witness introduces a second, independent source
+of truth — making it cryptographically difficult for an agent
+to fabricate its activity history without detection.
 
 ---
 
 ## Roadmap
 
-- [x] **Phase 1** — MVP: DID, HMAC signatures, reputation scoring, audit trail
-- [x] **Phase 2** — Production: Dashboard, 2FA, webhooks, Redis, ARIA Membrane, hardening
+- [x] **Phase 1** — Core: Cryptographic DID, HMAC event signing, reputation scoring, audit trail
+- [x] **Phase 2** — Production: Dashboard, 2FA auth, webhooks, Redis, ARIA Membrane, security hardening (86/86 audit)
 - [ ] **Phase 3** — ARIA Spectrum: Universal event receiver, behavioral fingerprinting, cross-verification protocol
-- [ ] **Phase 4** — ARIA Gate: Human approval for destructive actions, risk classification, auto-blocking
+- [ ] **Phase 4** — ARIA Gate: Runtime enforcement, human approval flows, risk classification, auto-blocking
 - [ ] **Phase 5** — ARIA Shadow Witness: Independent verification of agent-reported actions
-- [ ] **Phase 6** — ARIA Temporal Anchor: RFC 3161 cryptographic time proofs per event
-- [ ] **Phase 7** — ARIA ZeroProof: Zero-knowledge behavioral compliance proofs
+- [ ] **Phase 6** — ARIA Temporal Anchor: RFC 3161 cryptographic time proofs anchored to international time authorities
+- [ ] **Phase 7** — ARIA ZeroProof: Zero-knowledge behavioral compliance proofs — prove correct behavior without revealing business data
 
 ---
 
