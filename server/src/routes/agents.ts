@@ -182,6 +182,7 @@ agentsRouter.get("/", async (req, res) => {
     };
 
     const agents = result.rows.map((row) => ({
+      did: row.did,
       name: row.name,
       masked_did: maskDid(row.did),
       scope_summary: Array.isArray(row.scope) && row.scope.length > 0 ? row.scope[0] : "No scope",

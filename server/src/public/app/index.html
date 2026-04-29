@@ -1199,8 +1199,8 @@
         apiCall('/v1/events?limit=100')
       ]);
       const totalAgents = agents.agents?.length || 0;
-      const totalEvents = events.events?.length || 0;
-      const anomalies   = events.events?.filter(e => e.outcome === 'anomaly').length || 0;
+      const totalEvents = (agents.agents || []).reduce((sum, a) => sum + (a.total_events || 0), 0);
+      const anomalies   = (events.events || []).filter(e => e.server_within_scope === false || e.signature_valid === false).length;
 
       let avgTrust = 0;
       if (agents.agents?.length) {

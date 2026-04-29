@@ -1,7 +1,4 @@
 import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const ARIA_URL = 'https://aria-production-0458.up.railway.app';
@@ -12,7 +9,10 @@ const AGENT = {
   scope: ['process:sale', 'read:inventory', 'generate:report', 'create:invoice', 'read:customer'],
 };
 
-const STATE_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'agent-state.json');
+// Deterministic secret derived from API_KEY — survives Railway restarts without file storage.
+const FIXED_SECRET = crypto.createHmac('sha256', API_KEY)
+  .update('sim-lastressss-secret-v1')
+  .digest('hex');
 
 // ── Products (Colombian POS) ──────────────────────────────────────────────────
 const PRODUCTS = [
@@ -27,19 +27,6 @@ const PRODUCTS = [
 
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-
-// ── Persistence ───────────────────────────────────────────────────────────────
-async function loadState() {
-  try {
-    return JSON.parse(await fs.readFile(STATE_FILE, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-async function saveState(state) {
-  await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2));
-}
 
 // ── ARIA helpers ──────────────────────────────────────────────────────────────
 async function ariaPost(path, body) {
@@ -60,22 +47,22 @@ async function ariaGet(path) {
 
 // ── Agent registration ────────────────────────────────────────────────────────
 async function ensureAgent() {
-  const saved = await loadState();
-  if (saved?.did && saved?.secret) {
-    console.log(`♻️  Reusing saved agent: ${saved.did}`);
-    return saved;
+  // Look for existing agent by name — avoids spawning duplicates across Railway restarts.
+  const lookup = await ariaGet('/v1/agents?name=' + encodeURIComponent(AGENT.name));
+  const existing = lookup?.agents?.find(a => a.name === AGENT.name);
+  if (existing?.did) {
+    console.log(`♻️  Reusing existing agent: ${existing.did}`);
+    return { did: existing.did, secret: FIXED_SECRET };
   }
 
   console.log('🔧 Registering new agent…');
   const data = await ariaPost('/v1/agents', AGENT);
-  if (!data?.agent?.did || !data?.secret) {
+  if (!data?.agent?.did) {
     throw new Error(`Agent registration failed: ${JSON.stringify(data)}`);
   }
 
-  const state = { did: data.agent.did, secret: data.secret };
-  await saveState(state);
-  console.log(`✅ Agent registered: ${state.did}`);
-  return state;
+  console.log(`✅ Agent registered: ${data.agent.did}`);
+  return { did: data.agent.did, secret: FIXED_SECRET };
 }
 
 // ── HMAC signing (v1) ─────────────────────────────────────────────────────────
