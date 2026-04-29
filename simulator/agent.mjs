@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const ARIA_URL = 'https://aria-production-0458.up.railway.app';
+const ARIA_URL = 'https://ariatrust.org';
 const API_KEY  = '77c0e3a9-f1a1-4fd7-98ff-cf49a2e448ce';
 
 const AGENT = {

@@ -13,7 +13,7 @@ ARIA is the accountability layer the AI industry is missing. Companies deploy AI
 
 ### 1. Create your account
 
-Go to [aria-production-0458.up.railway.app/app](https://aria-production-0458.up.railway.app/app) and register.
+Go to [ariatrust.org/app](https://ariatrust.org/app) and register.
 
 After confirming your email and signing in, copy your **API Key** from the dashboard.
 
@@ -29,7 +29,7 @@ npm install @ariatrust-io/aria-sdk
 import { createClient } from '@ariatrust-io/aria-sdk';
 
 const aria = createClient({
-  baseUrl: 'https://aria-production-0458.up.railway.app',
+  baseUrl: 'https://ariatrust.org',
   apiKey: 'your-api-key-from-dashboard'
 });
 
@@ -67,7 +67,7 @@ console.log(result.insights);
 
 ### 5. View your agent in the dashboard
 
-Sign in at `https://aria-production-0458.up.railway.app/app` and see:
+Sign in at `https://ariatrust.org/app` and see:
 - Live trust score and trust level
 - Full event history
 - Anomalies detected
@@ -104,7 +104,7 @@ Scores decay toward neutral (50) if the agent is inactive for 7+ days.
 Get notified instantly when something suspicious happens:
 
 ```bash
-curl -X POST https://aria-production-0458.up.railway.app/v1/webhooks \
+curl -X POST https://ariatrust.org/v1/webhooks \
   -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -135,7 +135,7 @@ Each webhook is signed with HMAC-SHA256 via the `X-ARIA-Signature` header so you
 
 ## API Reference
 
-**Base URL:** `https://aria-production-0458.up.railway.app`
+**Base URL:** `https://ariatrust.org`
 
 ### Authentication
 
@@ -332,7 +332,7 @@ Node.js · TypeScript · Express · PostgreSQL · Redis · Railway
 
 ## Links
 
-- **Dashboard:** https://aria-production-0458.up.railway.app/app
+- **Dashboard:** https://ariatrust.org/app
 - **npm SDK:** https://www.npmjs.com/package/@ariatrust-io/aria-sdk
 - **GitHub:** https://github.com/ariatrust-io/aria
 

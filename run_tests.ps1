@@ -1,6 +1,6 @@
 $api = "e5c8ea07-a5b0-4971-aacb-cb6c107769a9"
 $did = "did:agentrust:d8a9352a-ceca-4473-9115-8aa9782ba325"
-$base = "https://aria-production-0458.up.railway.app"
+$base = "https://ariatrust.org"
 $sk = "9505558bab1d7dba616f7f575ab035cd74ae494befd5c29dd2d42979ab66f3fb"
 
 function call($u, $m, $b, $ah) {
@@ -19,7 +19,7 @@ function call($u, $m, $b, $ah) {
 }
 
 $hdr = @{Authorization="Bearer $api"; "Content-Type"="application/json"}
-Write-Host "======== PART 1 — FUNCTIONAL TESTS ========"
+Write-Host "======== PART 1 ï¿½ FUNCTIONAL TESTS ========"
 $pass=0; $tot=0
 
 # T01

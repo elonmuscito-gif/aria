@@ -1,5 +1,5 @@
 // PART 3: Attack Tests A01-A43 — Production
-const BASE = "https://aria-production-0458.up.railway.app";
+const BASE = "https://ariatrust.org";
 const KEY  = "2d0d93ee-35f8-4edf-a154-1bea58e1b9e6";
 const DID  = "did:agentrust:afa32b33-fa1e-4a28-ad02-5fcdf85e6374";
 const SECRET = "60a4d9ed47534569937653e467b2ee316ab6c38793714926961a307761d2c187";
