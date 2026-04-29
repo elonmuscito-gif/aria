@@ -1,7 +1,11 @@
-$api = "e5c8ea07-a5b0-4971-aacb-cb6c107769a9"
-$did = "did:agentrust:d8a9352a-ceca-4473-9115-8aa9782ba325"
-$base = "https://ariatrust.org"
-$sk = "9505558bab1d7dba616f7f575ab035cd74ae494befd5c29dd2d42979ab66f3fb"
+$api = $env:ARIA_API_KEY
+$did = $env:ARIA_TEST_AGENT_DID
+$base = $env:ARIA_BASE_URL
+$sk = $env:ARIA_SETUP_KEY
+
+if (-not $base) { $base = "http://127.0.0.1:3001" }
+if (-not $api) { throw "Set ARIA_API_KEY before running this script." }
+if (-not $sk) { throw "Set ARIA_SETUP_KEY before running this script." }
 
 function call($u, $m, $b, $ah) {
     $hdrs = @{Authorization="Bearer $ah"; "Content-Type"="application/json"}
@@ -18,40 +22,40 @@ function call($u, $m, $b, $ah) {
     }
 }
 
-$hdr = @{Authorization="Bearer $api"; "Content-Type"="application/json"}
+$hdr = $api
 Write-Host "======== PART 1 � FUNCTIONAL TESTS ========"
 $pass=0; $tot=0
 
 # T01
 $tot++; $g1=[guid]::NewGuid().ToString()
 Write-Host -NoNewline "T$tot | POST /v1/setup valid ... "
-$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"setup-$g1@example.com`",`"name`":`"T1`",`"scope`":[]}" $hdr
+$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"setup-$g1@example.com`",`"name`":`"T1`",`"scope`":[`"action:read`"]}" $hdr
 if($r.status -eq 201){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
 
 # T02
 $tot++; Write-Host -NoNewline "T$tot | POST /v1/setup duplicate email ... "
-$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"audit@ariatrust.org`",`"name`":`"T2`",`"scope`":[]}" $hdr
+$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"audit@ariatrust.org`",`"name`":`"T2`",`"scope`":[`"action:read`"]}" $hdr
 if($r.status -eq 409){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
 
 # T03
 $tot++; Write-Host -NoNewline "T$tot | POST /v1/setup disposable email ... "
-$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"test@mailinator.com`",`"name`":`"T3`",`"scope`":[]}" $hdr
+$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"test@mailinator.com`",`"name`":`"T3`",`"scope`":[`"action:read`"]}" $hdr
 if($r.status -eq 400){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
 
 # T04
 $tot++; Write-Host -NoNewline "T$tot | POST /v1/setup invalid email ... "
-$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"not-an-email`",`"name`":`"T4`",`"scope`":[]}" $hdr
+$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"not-an-email`",`"name`":`"T4`",`"scope`":[`"action:read`"]}" $hdr
 if($r.status -eq 400){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
 
 # T05 skipped
 $tot++; Write-Host -NoNewline "T$tot | POST /v1/setup password ... "
-$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"short-$g1@example.com`",`"name`":`"T5`",`"scope`":[]}" $hdr
+$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"short-$g1@example.com`",`"name`":`"T5`",`"scope`":[`"action:read`"]}" $hdr
 Write-Host "N/A"; $pass++
 
 # T06
 $tot++; $long="x"*200
 Write-Host -NoNewline "T$tot | Name 200 chars ... "
-$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"long-$g1@example.com`",`"name`":`"$long`",`"scope`":[]}" $hdr
+$r=call "/v1/setup" "POST" "{`"setup_key`":`"$sk`",`"owner_email`":`"long-$g1@example.com`",`"name`":`"$long`",`"scope`":[`"action:read`"]}" $hdr
 if($r.status -eq 400){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
 
 # T07-T12 skipped
@@ -65,7 +69,7 @@ if($r.status -eq 200){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.sta
 
 # T14
 $tot++; Write-Host -NoNewline "T$tot | GET /v1/auth/me invalid key ... "
-$bh=@{Authorization="Bearer invalid-key-12345"; "Content-Type"="application/json"}
+$bh="invalid-key-12345"
 $r=call "/v1/auth/me" "GET" "" $bh
 if($r.status -eq 401){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
 
@@ -100,7 +104,8 @@ if($r.status -eq 400){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.sta
 
 # T20
 $tot++; Write-Host -NoNewline "T$tot | hardwareFingerprint (DTS) ... "
-$r=call "/v1/agents" "POST" "{`"name`":`"DTSAgent`",`"scope`":[],`"hardwareFingerprint`:`"fp-12345`"}" $hdr
+$fp = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+$r=call "/v1/agents" "POST" "{`"name`":`"DTSAgent`",`"scope`":[`"action:read`"],`"hardwareFingerprint`:`"$fp`"}" $hdr
 if($r.status -eq 201){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
 
 # T21
@@ -115,8 +120,12 @@ if($r.status -eq 200){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.sta
 
 # T23
 $tot++; Write-Host -NoNewline "T$tot | GET /v1/agents/:did valid ... "
-$r=call "/v1/agents/$did" "GET" "" $hdr
-if($r.status -eq 200){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
+if ($did) {
+    $r=call "/v1/agents/$did" "GET" "" $hdr
+    if($r.status -eq 200){Write-Host "PASS"; $pass++}else{Write-Host "FAIL ($($r.status))"}
+} else {
+    Write-Host "SKIP (set ARIA_TEST_AGENT_DID)"
+}
 
 # T24
 $tot++; Write-Host -NoNewline "T$tot | GET /v1/agents/:did invalid ... "

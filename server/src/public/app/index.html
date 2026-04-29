@@ -1235,13 +1235,13 @@
         </div>`;
 
       agents.forEach(agent => {
-        const score      = parseInt(agent.success_rate) || 0;
+        const score      = parseInt(agent.trustScore ?? agent.success_rate) || 0;
         const cls        = score >= 80 ? 'high'     : score >= 50 ? 'medium'  : 'low';
         const badgeCls   = score >= 80 ? 'trusted'  : score >= 50 ? 'neutral' : 'untrusted';
         const badgeLbl   = score >= 80 ? 'Trusted'  : score >= 50 ? 'Neutral' : 'Untrusted';
         const shortDid   = (agent.masked_did || agent.did || '').slice(0, 24) + '…';
 
-        html += `<div class="agent-row" onclick="showAgentDetail('${escapeHtml(agent.masked_did)}')">
+        html += `<div class="agent-row" onclick='showAgentDetail(${JSON.stringify(agent.did || "")})'>
           <div>
             <div class="agent-name">${escapeHtml(agent.name)}</div>
           </div>

@@ -301,7 +301,13 @@ eventsRouter.post("/batch", async (req, res) => {
   const decryptedHmacKey = row.hmac_key ? decryptSecret(row.hmac_key, row.did) : null;
   const storedShareC = typeof row.meta?.dts_share_c === "string" ? row.meta.dts_share_c : null;
 
-  const validatedEvents: Array<{ event: typeof events[number]; serverWithinScope: boolean; signatureValid: boolean; finalMeta: Record<string, unknown> | null }> = [];
+  const validatedEvents: Array<{
+    event: typeof events[number];
+    serverWithinScope: boolean;
+    signatureValid: boolean;
+    finalMeta: Record<string, unknown> | null;
+    anomalyTypes: string[];
+  }> = [];
 
   for (const event of events) {
     const validationError = validateEvent(event);
@@ -359,16 +365,26 @@ eventsRouter.post("/batch", async (req, res) => {
       ? { ...event.meta, rate_limit_exceeded: true }
       : (event.meta ?? null);
 
+    const anomalyTypes: string[] = [];
+
+    if (!serverWithinScope) {
+      anomalyTypes.push("scope_violation");
+    }
+
+    if (!signatureValid) {
+      anomalyTypes.push("signature_failure");
+    }
+
     if (hardwareConflict) {
       finalMeta = { ...(finalMeta ?? {}), hardware_conflict: true };
-      recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "hardware_conflict" }).catch(() => {});
+      anomalyTypes.push("hardware_conflict");
     }
 
     if (rateLimitExceeded) {
-      recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "rate_limit_exceeded" }).catch(() => {});
+      anomalyTypes.push("rate_limit_exceeded");
     }
 
-    validatedEvents.push({ event, serverWithinScope, signatureValid, finalMeta });
+    validatedEvents.push({ event, serverWithinScope, signatureValid, finalMeta, anomalyTypes });
   }
 
   if (validatedEvents.length === 0) {
@@ -402,6 +418,11 @@ eventsRouter.post("/batch", async (req, res) => {
     });
 
     accepted.push(...validatedEvents.map(ve => ve.event.eventId));
+    for (const ve of validatedEvents) {
+      for (const type of ve.anomalyTypes) {
+        recordAnomaly({ agentId, eventId: ve.event.eventId, action: ve.event.action, type }).catch(() => {});
+      }
+    }
   } catch (bulkErr: unknown) {
     const pgErr = bulkErr as { code?: string; detail?: string };
     if (pgErr.code === "23505") {
@@ -416,6 +437,9 @@ eventsRouter.post("/batch", async (req, res) => {
             await client.query("UPDATE agents SET last_seen = NOW() WHERE id = $1", [agentId]);
           });
           accepted.push(ve.event.eventId);
+          for (const type of ve.anomalyTypes) {
+            recordAnomaly({ agentId, eventId: ve.event.eventId, action: ve.event.action, type }).catch(() => {});
+          }
         } catch {
           duplicateEvents.push(ve.event.eventId);
         }
@@ -537,21 +561,17 @@ function verifySignatureV1(event: IncomingEvent, hmacKey: string): boolean {
 }
 
 // v2: DTS — HMAC-based One-Way Signature (Secure)
-// Step 1: Server calculates partial_A = HMAC(ShareA, payload)
+// Step 1: Server calculates partial_A = HMAC(server-side partialAKey, payload)
 // Step 2: Client provides partial_B = HMAC(ShareB, payload) in event.meta
 // Step 3: Final signature = HMAC(partial_A || partial_B, "dts_binding")
-function verifySignatureV2(event: IncomingEvent, shareA: string): boolean {
+function verifySignatureV2(event: IncomingEvent, partialAKeyHex: string): boolean {
   const payload = `${event.eventId}:${event.agentDid}:${event.action}:${event.outcome}:${event.timestamp}`;
 
-  // Step 1: Derive partialA from ShareA (server-side only)
-  const shareABuf = Buffer.from(shareA, "hex");
-  const partialAKey = Buffer.from(
-    hkdfSync("sha256", shareABuf, Buffer.alloc(0), "dts_partial_a_v2", 32) as ArrayBuffer,
-  );
+  // Step 1: Use the server-side DTS key stored encrypted at registration time.
+  const partialAKey = Buffer.from(partialAKeyHex, "hex");
   const partial_A = createHmac("sha256", partialAKey).update(payload).digest();
 
-  // Zero-out ShareA from memory immediately for security
-  shareABuf.fill(0);
+  partialAKey.fill(0);
 
   // Step 2: Client must provide partial_B (already HMAC'd by client)
   const partial_B_hex = event.meta && typeof event.meta.partial_b === "string" ? event.meta.partial_b : null;
@@ -694,13 +714,8 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
 
   if (hardwareConflict) {
     finalMeta = { ...(finalMeta ?? {}), hardware_conflict: true };
-    recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "hardware_conflict" }).catch(() => {});
   }
 
-  if (rateLimitExceeded) {
-     // Record rate limit anomaly
-     recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "rate_limit_exceeded" }).catch(() => {});
-  }
   // --- FIN DE DETECCIÓN DE ANOMALÍAS ---
 
   try {
@@ -732,6 +747,17 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
     eventId: event.eventId,
     agentId,
   });
+
+  const anomalyTypes = [
+    ...(!serverWithinScope ? ["scope_violation"] : []),
+    ...(!signatureValid ? ["signature_failure"] : []),
+    ...(hardwareConflict ? ["hardware_conflict"] : []),
+    ...(rateLimitExceeded ? ["rate_limit_exceeded"] : []),
+  ];
+
+  for (const type of anomalyTypes) {
+    recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type }).catch(() => {});
+  }
 
   query("UPDATE agents SET last_seen = NOW() WHERE id = $1", [agentId]).catch((err: unknown) => {
     logEvent("warn", "Failed to update agent last_seen after single event ingestion", {

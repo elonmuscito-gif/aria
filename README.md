@@ -169,7 +169,7 @@ Authorization: Bearer your-api-key
 
 ## Security
 
-ARIA was built security-first and passed a **86/86 internal security audit**.
+ARIA is built security-first. The current repository includes internal hardening and red-team test scripts, but the public test/audit artifacts should be treated as works in progress until a fresh end-to-end audit is published.
 
 | Feature | Implementation |
 |---------|----------------|
@@ -288,7 +288,7 @@ to fabricate its activity history without detection.
 ## Roadmap
 
 - [x] **Phase 1** — Core: Cryptographic DID, HMAC event signing, reputation scoring, audit trail
-- [x] **Phase 2** — Production: Dashboard, 2FA auth, webhooks, Redis, ARIA Membrane, security hardening (86/86 audit)
+- [x] **Phase 2** — Production: Dashboard, 2FA auth, webhooks, Redis, ARIA Membrane, security hardening
 - [ ] **Phase 3** — ARIA Spectrum: Universal event receiver, behavioral fingerprinting, cross-verification protocol
 - [ ] **Phase 4** — ARIA Gate: Runtime enforcement, human approval flows, risk classification, auto-blocking
 - [ ] **Phase 5** — ARIA Shadow Witness: Independent verification of agent-reported actions

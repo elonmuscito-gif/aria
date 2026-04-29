@@ -1,5 +1,5 @@
 const API = "http://localhost:3001";
-const AUTH = { Authorization: "Bearer password" };
+const AUTH = { Authorization: `Bearer ${localStorage.getItem("aria_api_key") || ""}` };
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function rel(ts) {

@@ -41,6 +41,13 @@ agentsRouter.post("/", async (req, res) => {
     });
   }
 
+  if (hardwareFingerprint && !/^[0-9a-fA-F]{64}$/.test(hardwareFingerprint)) {
+    return res.status(400).json({
+      error: "hardwareFingerprint must be a 32-byte hex string",
+      code: "INVALID_HARDWARE_FINGERPRINT",
+    });
+  }
+
   const did = `did:agentrust:${randomUUID()}`;
   const publicKey = [...scope].sort().join("|");
 
@@ -89,7 +96,7 @@ hmacKey = partialAKey.toString("hex"); // Database stores the derived key
     
     responseCredentials = {
       fragmentB: shareB.toString("hex"),
-      partialAKey: hmacKey, // Ambos lados tienen la misma llave para calcular partial_A
+      signingVersion: "2",
     };
   } else {
     // Classic mode
@@ -147,7 +154,7 @@ agentsRouter.get("/", async (req, res) => {
         a.did, a.name, a.scope, a.created_at, a.last_seen,
         COALESCE(r.total_events, 0)  AS total_events,
         COALESCE(r.anomaly_count, 0) AS anomaly_count,
-        r.success_rate
+        r.success_rate, r.final_score, r.trust_level
       FROM agents a
       LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
       WHERE (
@@ -173,6 +180,8 @@ agentsRouter.get("/", async (req, res) => {
       total_events: number;
       anomaly_count: number;
       success_rate: string | null;
+      final_score: number | null;
+      trust_level: string | null;
     }>(sql, params);
 
     const maskDid = (did: string) => {
@@ -192,6 +201,8 @@ agentsRouter.get("/", async (req, res) => {
       total_events: row.total_events,
       anomaly_count: row.anomaly_count,
       success_rate: row.success_rate,
+      trustScore: row.final_score,
+      trustLevel: row.trust_level,
     }));
 
     return res.json({ agents });

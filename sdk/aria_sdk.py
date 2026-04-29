@@ -52,8 +52,8 @@ class ARIAClient:
         if "secret" in data:
             self.signing_secret = data["secret"]
             self.signing_version = 1
-        elif "partialAKey" in data:
-            self.signing_secret = data["partialAKey"]
+        elif "fragmentB" in data:
+            self.signing_secret = data["fragmentB"]
             self.signing_version = 2
         else:
             raise ValueError("Servidor ARIA no devolvió credenciales de firma válidas")

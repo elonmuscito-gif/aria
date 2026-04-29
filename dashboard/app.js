@@ -1,5 +1,5 @@
 const API = 'http://localhost:3001';
-const KEY = 'password';
+const KEY = localStorage.getItem('aria_api_key') || '';
 
 async function loadAgents() {
   try {
@@ -60,7 +60,7 @@ async function loadAgents() {
 
   } catch (err) {
     document.getElementById('agents-list').innerHTML =
-      `<div class="error">Cannot connect to server. Is it running?</div>`;
+      `<div class="error">${KEY ? 'Cannot connect to server. Is it running?' : 'Set aria_api_key in localStorage to use this preview.'}</div>`;
   }
 }
 

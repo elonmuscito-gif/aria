@@ -6,7 +6,7 @@ import helmet from "helmet";
 import { getRedisClient } from './utils/redis.js';
 
 const app = express();
-const INTERNAL_PORT = 3000;
+const INTERNAL_PORT = parseInt(process.env.INTERNAL_PORT || "3000", 10);
 const EXTERNAL_PORT = parseInt(process.env.PORT || "8080");
 const LISTEN_HOST = process.env.HOST || '0.0.0.0';
 const ARIA_INTERNAL = `http://localhost:${INTERNAL_PORT}`;

@@ -82,6 +82,13 @@ if (!SETUP_KEY) {
   process.exit(1);
 }
 
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const BLOCKED_DOMAINS = new Set([
+  'mailinator.com', 'tempmail.com', 'guerrillamail.com', '10minutemail.com',
+  'throwaway.email', 'yopmail.com', 'sharklasers.com', 'trashmail.com',
+  'mailnull.com', 'spam4.me', 'dispostable.com', 'fakeinbox.com',
+]);
+
 app.use(helmet({ contentSecurityPolicy: false, xPoweredBy: false }));
 app.disable("x-powered-by");
 app.use(cors({
@@ -154,11 +161,31 @@ app.post("/v1/setup", setupLimiter, async (req, res) => {
     res.status(400).json({ error: "owner_email is required", code: "MISSING_EMAIL" });
     return;
   }
+
+  const normalizedEmail = owner_email.toLowerCase();
+  const domain = normalizedEmail.split("@")[1] ?? "";
+  if (!EMAIL_REGEX.test(normalizedEmail) || BLOCKED_DOMAINS.has(domain)) {
+    res.status(400).json({ error: "Valid non-disposable owner_email is required", code: "INVALID_EMAIL" });
+    return;
+  }
+
+  if (name !== undefined && (typeof name !== "string" || name.trim().length === 0 || name.trim().length > 100)) {
+    res.status(400).json({ error: "name must be 1-100 characters", code: "INVALID_NAME" });
+    return;
+  }
+
+  if (scope !== undefined) {
+    if (!Array.isArray(scope) || scope.length === 0 || scope.length > 20 ||
+        scope.some((s) => typeof s !== "string" || s.length > 50 || !/^[a-z]+:[a-z_]+$/.test(s))) {
+      res.status(400).json({ error: "scope must contain valid verb:resource actions", code: "INVALID_SCOPE" });
+      return;
+    }
+  }
   
   try {
     const existingKey = await query<{ id: string }>(
       "SELECT id FROM api_keys WHERE owner_email = $1 AND revoked_at IS NULL",
-      [owner_email]
+      [normalizedEmail]
     );
     
     if (existingKey.rows[0]) {
@@ -172,7 +199,7 @@ app.post("/v1/setup", setupLimiter, async (req, res) => {
     
     const apiKeyResult = await query<{ id: string }>(
       "INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-      [randomUUID(), keyHash, keySha256, "auto-generated", owner_email]
+      [randomUUID(), keyHash, keySha256, "auto-generated", normalizedEmail]
     );
     
     if (!apiKeyResult.rows[0]) {
@@ -315,8 +342,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 // 6. ARRANQUE DEL SERVIDOR (Railway compatible)
-const LISTEN_PORT = 3000;
-const LISTEN_HOST = '127.0.0.1';
+const LISTEN_PORT = parseInt(process.env.INTERNAL_PORT || "3000", 10);
+const LISTEN_HOST = process.env.INTERNAL_HOST || '127.0.0.1';
 (async () => {
   app.listen(LISTEN_PORT, LISTEN_HOST, () => {
     console.log(`ARIA Internal API running on ${LISTEN_HOST}:${LISTEN_PORT}`);
