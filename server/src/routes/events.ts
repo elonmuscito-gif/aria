@@ -698,7 +698,7 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
   }
 
   if (rateLimitExceeded) {
-     // REGISTRO DE ANOMALÍA 6
+     // Record rate limit anomaly
      recordAnomaly({ agentId, eventId: event.eventId, action: event.action, type: "rate_limit_exceeded" }).catch(() => {});
   }
   // --- FIN DE DETECCIÓN DE ANOMALÍAS ---
