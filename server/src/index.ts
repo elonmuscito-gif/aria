@@ -112,6 +112,10 @@ app.get('/app/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app', 'index.html'));
 });
 
+app.get('/privacy', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use(express.json({ limit: "1mb" }));

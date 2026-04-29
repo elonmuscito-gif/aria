@@ -108,6 +108,7 @@ app.use((req, res, next) => {
 const ALLOWED_PATHS = [
   "/",
   "/app",
+  "/privacy",
   "/health",
   "/v1/setup",
   "/v1/agents",
