@@ -78,6 +78,30 @@ const resendLimiter = rateLimit({
   }
 });
 
+const verifyCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getRateLimitKey(req),
+  store: _redis ? (() => {
+    try {
+      return new RedisStore({
+        sendCommand: (...args: string[]) =>
+          (_redis as any).call(...args)
+      });
+    } catch {
+      return undefined;
+    }
+  })() : undefined,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many attempts. Try again in 15 minutes.',
+      code: 'RATE_LIMITED'
+    });
+  }
+});
+
 authRouter.use(authRateLimiter);
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -373,7 +397,7 @@ authRouter.post("/login", loginLimiter, validateLoginInput, async (req, res) => 
 
 // ─── POST /v1/auth/verify-code ────────────────────────────────────────────────
 // Step 2 of 2FA: validates code, issues a fresh API key.
-authRouter.post("/verify-code", async (req, res) => {
+authRouter.post("/verify-code", verifyCodeLimiter, async (req, res) => {
   const { email, code } = req.body as { email?: string; code?: string };
 
   if (!email || !code || typeof email !== "string" || typeof code !== "string") {
