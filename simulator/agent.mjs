@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const ARIA_URL = 'https://ariatrust.org';
-const API_KEY  = '77c0e3a9-f1a1-4fd7-98ff-cf49a2e448ce';
+const API_KEY = process.env.ARIA_API_KEY || 'efd1f57b-645f-4821-8620-6aab909dc155';
 
 const AGENT = {
   name:  'sim-lastressss',
