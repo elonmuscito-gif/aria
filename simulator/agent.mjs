@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 
+console.log('[simulator] API_KEY loaded:', process.env.ARIA_API_KEY ? process.env.ARIA_API_KEY.substring(0, 8) + '...' : 'NOT SET - using fallback');
+
 // ── Config ────────────────────────────────────────────────────────────────────
 const ARIA_URL = 'https://ariatrust.org';
 const API_KEY = process.env.ARIA_API_KEY || 'efd1f57b-645f-4821-8620-6aab909dc155';
