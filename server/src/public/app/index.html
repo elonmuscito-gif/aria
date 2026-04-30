@@ -198,10 +198,10 @@
     .form-group input {
       width: 100%;
       background: #07090f;
-      border: 1px solid rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 4px;
       padding: 11px 14px;
-      color: var(--white);
+      color: #f8f4ee;
       font-size: 14px;
       font-family: 'DM Sans', sans-serif;
       transition: border-color 0.2s;
@@ -213,7 +213,7 @@
       background: #07090f;
     }
     
-    .form-group input::placeholder { color: rgba(248,244,238,0.45); }
+    .form-group input::placeholder { color: rgba(248,244,238,0.3); }
     
     .code-input-group {
       display: flex;
@@ -229,9 +229,10 @@
       letter-spacing: 8px;
       text-align: center;
       padding: 16px;
-      border: 1px solid rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 6px;
       background: #030508;
+      color: #f8f4ee;
     }
     
     .code-input-group input:focus {
@@ -443,7 +444,7 @@
       font-weight: 600;
       letter-spacing: 3px;
       text-transform: uppercase;
-      color: var(--gold);
+      color: rgba(248,244,238,0.45);
       margin-bottom: 14px;
     }
     
@@ -541,7 +542,7 @@
     .agent-did {
       font-family: 'JetBrains Mono', monospace;
       font-size: 11px;
-      color: rgba(248,244,238,0.45);
+      color: rgba(201,168,76,0.7);
     }
     
     .trust-score {
@@ -606,14 +607,32 @@
     .event-agent  { font-size: 12px; color: rgba(248,244,238,0.75); }
     .event-time   { font-size: 12px; color: rgba(248,244,238,0.45); font-family: 'JetBrains Mono', monospace; }
     
-    .badge-violation {
-      background: rgba(201,168,76,0.07);
-      border: 1px solid rgba(201,168,76,0.22);
-      border-radius: 6px;
+    .badge-success, .badge-error, .badge-violation {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      color: var(--gold-lt);
-      padding: 12px 20px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .badge-success {
+      background: #0a2e0f;
+      color: #28c841;
+      border: 1px solid rgba(40,200,65,0.4);
+    }
+    .badge-error {
+      background: #2e0a0a;
+      color: #c94c4c;
+      border: 1px solid rgba(201,76,76,0.4);
+    }
+    .badge-violation {
+      background: rgba(201,168,76,0.1);
+      color: #e8c87a;
+      border: 1px solid rgba(201,168,76,0.3);
     }
 
     /* ── AGENT DETAIL ── */
@@ -1025,7 +1044,7 @@
           <button class="btn btn-danger btn-sm" onclick="rotateApiKey()">Rotate Key</button>
         </div>
 
-        <p style="font-size:13px;color:#888;margin-top:12px;line-height:1.6">
+        <p style="font-size:13px;color:rgba(248,244,238,0.5);margin-top:12px;line-height:1.6">
           Your API key was set when you first logged in.<br>
           To see it again, check your saved records or rotate to get a new one.
         </p>
@@ -1392,15 +1411,19 @@
 
       let html = '';
       events.forEach(event => {
-        const cls        = event.outcome === 'success' ? 'success'
-                         : event.outcome === 'anomaly'  ? 'anomaly' : 'error';
+        const cls         = event.outcome === 'success' ? 'success'
+                          : event.outcome === 'anomaly'  ? 'anomaly' : 'error';
         const withinScope = event.server_within_scope !== false;
+        const outcomeBadge = event.outcome === 'success'
+          ? '<span class="badge-success">SUCCESS</span>'
+          : '<span class="badge-error">ERROR</span>';
         html += `<div class="event-item">
           <div class="event-dot ${cls}"></div>
-          <div class="event-action">${escapeHtml(event.action)}</div>
-          <div class="event-agent">${escapeHtml(event.agent_name || 'Unknown')}</div>
-          <div class="event-time">${relativeTime(event.client_ts)}</div>
-          ${!withinScope ? '<span class="badge-violation">Scope Violation</span>' : ''}
+          <div class="event-action" style="color:#f8f4ee;flex:1">${escapeHtml(event.action)}</div>
+          <div class="event-agent" style="color:rgba(248,244,238,0.55);font-size:12px">${escapeHtml(event.agent_name || 'Unknown')}</div>
+          ${outcomeBadge}
+          ${!withinScope ? '<span class="badge-violation">SCOPE VIOLATION</span>' : ''}
+          <div class="event-time" style="color:rgba(248,244,238,0.4);font-size:12px;font-family:\'JetBrains Mono\',monospace">${relativeTime(event.client_ts)}</div>
         </div>`;
       });
       el.innerHTML = html;
@@ -1490,10 +1513,10 @@
         evtList.forEach(ev => {
           const c = ev.outcome === 'success' ? 'success' : ev.outcome === 'anomaly' ? 'warning' : 'error';
           html += `<div class="detail-event">
-            <div>${escapeHtml(ev.action)}</div>
+            <div style="color:#f8f4ee">${escapeHtml(ev.action)}</div>
             <div style="color:var(--${c})">${ev.outcome}</div>
-            <div style="font-family:var(--mono);font-size:13px">${ev.duration_ms}ms</div>
-            <div>${relativeTime(ev.client_ts)}</div>
+            <div style="font-family:var(--mono);font-size:13px;color:rgba(248,244,238,0.65)">${ev.duration_ms}ms</div>
+            <div style="color:rgba(248,244,238,0.45)">${relativeTime(ev.client_ts)}</div>
           </div>`;
         });
         document.getElementById('detail-events').innerHTML = html;
