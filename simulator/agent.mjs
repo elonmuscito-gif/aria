@@ -109,13 +109,13 @@ function generateEvent(did, secret) {
     const variant = Math.random();
     if (variant < 0.40) {
       action = 'process:sale';
-      meta = { amount: -5000, error: 'monto negativo' };
+      meta = { amount: -5000, error: 'negative amount' };
     } else if (variant < 0.70) {
       action = 'create:invoice';
-      meta = { error: 'datos del cliente incompletos' };
+      meta = { error: 'customer data incomplete' };
     } else {
       action = 'read:inventory';
-      meta = { error: 'producto no encontrado' };
+      meta = { error: 'product not found' };
     }
 
   } else if (roll < 0.95) {
@@ -124,7 +124,7 @@ function generateEvent(did, secret) {
     outcome = 'error';
     withinScope = false;
     action = pick(['delete:database', 'modify:prices', 'access:admin', 'read:passwords']);
-    meta = { reason: 'acceso no autorizado' };
+      meta = { reason: 'unauthorized access' };
 
   } else {
     // ── 5% suspicious / anomalous
@@ -159,7 +159,7 @@ function generateEvent(did, secret) {
 const stats = { total: 0, successes: 0, errors: 0, violations: 0, suspicious: 0 };
 
 function printStats() {
-  const now = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+  const now = new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' });
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`📊 ARIA SIMULATOR — ${now}`);
   console.log(`Events sent: ${stats.total}`);
@@ -214,7 +214,7 @@ async function runLoop(did, secret) {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 async function main() {
-  console.log('🚀 ARIA Simulator — Las Tres SSS');
+  console.log('🚀 ARIA Simulator');
   console.log(`🌐 ${ARIA_URL}`);
 
   const { did, secret } = await ensureAgent();
@@ -226,7 +226,7 @@ async function main() {
   setInterval(() => checkTrustScore(did), 10 * 60 * 1000);
   await checkTrustScore(did);
 
-  console.log('▶️  Starting event loop (15–45s between events)…\n');
+  console.log('▶️  Starting event loop (15-45s between events)...\n');
   await runLoop(did, secret);
 }
 
