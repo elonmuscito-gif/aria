@@ -123,7 +123,7 @@ function generateEvent(did, secret) {
     type = 'violation';
     outcome = 'error';
     withinScope = false;
-    action = pick(['delete:database', 'modify:prices', 'access:admin', 'read:passwords']);
+    action = pick(['delete:database', 'modify:prices', 'access:admin']);
       meta = { reason: 'unauthorized access' };
 
   } else {
