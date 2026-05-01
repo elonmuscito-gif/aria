@@ -1653,10 +1653,15 @@
         let html = `<div class="detail-event header">
           <div>Action</div><div>Outcome</div><div>Duration</div><div>Time</div></div>`;
         evtList.forEach(ev => {
-          const c = ev.outcome === 'success' ? 'success' : ev.outcome === 'anomaly' ? 'warning' : 'error';
+          const isViolation = ev.server_within_scope === false;
+          const outcomeColor = isViolation ? 'var(--gold)'
+            : ev.outcome === 'success' ? 'var(--success)'
+            : 'var(--red)';
+          const outcomeLabel = isViolation ? 'SCOPE VIOLATION'
+            : ev.outcome.toUpperCase();
           html += `<div class="detail-event">
             <div style="color:#f8f4ee">${escapeHtml(ev.action)}</div>
-            <div style="color:var(--${c})">${ev.outcome}</div>
+            <div style="color:${outcomeColor};font-size:11px;font-weight:600;letter-spacing:0.5px">${outcomeLabel}</div>
             <div style="font-family:var(--mono);font-size:13px;color:rgba(248,244,238,0.65)">${ev.duration_ms}ms</div>
             <div style="color:rgba(248,244,238,0.45)">${relativeTime(ev.client_ts)}</div>
           </div>`;
