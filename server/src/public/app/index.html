@@ -1504,7 +1504,7 @@
         </div>`;
 
       agents.forEach(agent => {
-        const score      = parseInt(agent.trustScore ?? agent.success_rate) || 0;
+        const score      = parseInt(agent.trustScore) || parseInt(agent.success_rate) || 0;
         const cls        = score >= 80 ? 'high'     : score >= 50 ? 'medium'  : 'low';
         const badgeCls   = score >= 80 ? 'trusted'  : score >= 50 ? 'neutral' : 'untrusted';
         const badgeLbl   = score >= 80 ? 'Trusted'  : score >= 50 ? 'Neutral' : 'Untrusted';
@@ -1532,7 +1532,7 @@
   // ── EVENTS FEED ───────────────────────────────────────────────────────────
   async function loadRecentEvents() {
     try {
-      const data   = await apiCall('/v1/events?limit=10');
+      const data   = await apiCall('/v1/events?limit=20');
       const events = data.events || [];
       const el     = document.getElementById('events-feed');
 

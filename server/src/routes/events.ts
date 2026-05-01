@@ -485,16 +485,25 @@ eventsRouter.get("/", async (req, res) => {
       outcome,
     });
 
+    const userResult = await query<{ id: string }>(
+      'SELECT id FROM users WHERE email = $1',
+      [req.ownerEmail]
+    );
+    const userId = userResult.rows[0]?.id ?? null;
+
     let sql = `
       SELECT e.event_id, e.action, e.outcome, e.within_scope, e.server_within_scope, e.signature_valid,
              e.duration_ms, e.client_ts, e.error, e.meta,
              a.did AS agent_did, a.name AS agent_name
       FROM events e
       JOIN agents a ON a.id = e.agent_id
-      WHERE a.api_key_id = $1
+      WHERE (
+        a.user_id = $2
+        OR a.api_key_id = $1
+      )
     `;
-    const params: unknown[] = [req.apiKeyId];
-    let paramIdx = 2;
+    const params: unknown[] = [req.apiKeyId, userId];
+    let paramIdx = 3;
 
     if (agentDid) {
       sql += ` AND a.did = $${paramIdx++}`;
