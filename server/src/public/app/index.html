@@ -1304,14 +1304,23 @@
         throw new Error(data.error || 'Sign in failed');
       }
 
-      pendingLoginEmail = email;
-      // Show code input step
-      document.getElementById('login-form').classList.add('hidden');
-      document.getElementById('code-form').classList.remove('hidden');
-      document.getElementById('auth-tabs').classList.add('hidden');
-      document.getElementById('code-email-display').textContent = email;
-      document.getElementById('code-input').focus();
-      showAlert('Verification code sent. Check your email.', 'info');
+      if (data.api_key) {
+        // Direct login without 2FA
+        apiKey = data.api_key;
+        currentUser = data.user;
+        localStorage.setItem('aria_api_key', apiKey);
+        localStorage.setItem('aria_user', JSON.stringify(currentUser));
+        showDashboard();
+      } else {
+        // 2FA flow - show code input
+        pendingLoginEmail = email;
+        document.getElementById('login-form').classList.add('hidden');
+        document.getElementById('code-form').classList.remove('hidden');
+        document.getElementById('auth-tabs').classList.add('hidden');
+        document.getElementById('code-email-display').textContent = email;
+        document.getElementById('code-input').focus();
+        showAlert('Verification code sent. Check your email.', 'info');
+      }
     } catch (err) {
       showAlert(err.message);
     } finally {

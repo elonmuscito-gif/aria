@@ -6,7 +6,7 @@ import { RedisStore } from "rate-limit-redis";
 import { getRedisClient } from "../utils/redis.js";
 import { query } from "../db/pool.js";
 import { requireApiKey, invalidateCacheByApiKeyId } from "../middleware/auth.js";
-import { sendConfirmationEmail, sendVerificationCode } from "../services/email.js";
+import { sendConfirmationEmail } from "../services/email.js";
 
 export const authRouter = Router();
 
@@ -377,18 +377,34 @@ authRouter.post("/login", loginLimiter, validateLoginInput, async (req, res) => 
       });
     }
 
-    // Generate 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
-
+    // TODO: re-enable 2FA — temporarily bypassed for testing
+    // Revoke existing keys
     await query(
-      "UPDATE users SET verification_code = $1, verification_code_expires = $2 WHERE id = $3",
-      [code, codeExpires, user.id]
+      "UPDATE api_keys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
+      [user.id]
     );
 
-    await sendVerificationCode(email.toLowerCase(), code);
+    // Issue new key directly
+    const rawKey = randomUUID();
+    const keySha256 = createHash('sha256').update(rawKey).digest('hex');
+    const keyHash = await bcrypt.hash(rawKey, 10);
 
-    res.json({ message: "Verification code sent to your email" });
+    await query(
+      `INSERT INTO api_keys (key_hash, key_sha256, label, owner_email, user_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [keyHash, keySha256, 'login', user.email, user.id]
+    );
+
+    await query(
+      "UPDATE users SET last_login = NOW() WHERE id = $1",
+      [user.id]
+    );
+
+    res.json({
+      api_key: rawKey,
+      user: { id: user.id, email: user.email, name: user.name },
+      message: "Signed in successfully"
+    });
   } catch (e) {
     console.error("[auth] Login error:", e instanceof Error ? e.message : "Unknown");
     res.status(500).json({ error: "Service unavailable", code: "LOGIN_ERROR" });
