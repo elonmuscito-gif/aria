@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { getRedisClient } from "../utils/redis.js";
 import { query } from "../db/pool.js";
-import { requireApiKey, invalidateCacheByApiKeyId } from "../middleware/auth.js";
+import { requireApiKey } from "../middleware/auth.js";
 import { sendConfirmationEmail } from "../services/email.js";
 
 export const authRouter = Router();
@@ -378,12 +378,6 @@ authRouter.post("/login", loginLimiter, validateLoginInput, async (req, res) => 
     }
 
     // TODO: re-enable 2FA — temporarily bypassed for testing
-    // Revoke existing keys
-    await query(
-      "UPDATE api_keys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
-      [user.id]
-    );
-
     // Issue new key directly
     const rawKey = randomUUID();
     const keySha256 = createHash('sha256').update(rawKey).digest('hex');
@@ -452,17 +446,6 @@ authRouter.post("/verify-code", verifyCodeLimiter, async (req, res) => {
       [user.id]
     );
 
-    const existingKey = await query<{ id: string }>(
-      "SELECT id FROM api_keys WHERE user_id = $1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
-      [user.id]
-    );
-
-    // Revoke existing keys
-    await query(
-      "UPDATE api_keys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
-      [user.id]
-    );
-
     // Issue new key
     const rawKey = randomUUID();
     const keySha256 = createHash('sha256').update(rawKey).digest('hex');
@@ -473,8 +456,6 @@ authRouter.post("/verify-code", verifyCodeLimiter, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5)`,
       [keyHash, keySha256, 'login', user.email, user.id]
     );
-
-    if (existingKey.rows[0]) invalidateCacheByApiKeyId(existingKey.rows[0].id);
 
     const responseApiKey = rawKey;
 
