@@ -6,15 +6,8 @@ console.log('[simulator] API_KEY loaded:', process.env.ARIA_API_KEY ? process.en
 const ARIA_URL = 'https://ariatrust.org';
 const API_KEY = process.env.ARIA_API_KEY || 'efd1f57b-645f-4821-8620-6aab909dc155';
 
-const AGENT = {
-  name:  'sim-lastressss',
-  scope: ['process:sale', 'read:inventory', 'generate:report', 'create:invoice', 'read:customer'],
-};
-
-// Deterministic secret derived from API_KEY — survives Railway restarts without file storage.
-const FIXED_SECRET = crypto.createHmac('sha256', API_KEY)
-  .update('sim-lastressss-secret-v1')
-  .digest('hex');
+let AGENT_DID = null;
+let AGENT_SECRET = null;
 
 // ── Products (Colombian POS) ──────────────────────────────────────────────────
 const PRODUCTS = [
@@ -49,22 +42,33 @@ async function ariaGet(path) {
 
 // ── Agent registration ────────────────────────────────────────────────────────
 async function ensureAgent() {
-  // Look for existing agent by name — avoids spawning duplicates across Railway restarts.
-  const lookup = await ariaGet('/v1/agents?name=' + encodeURIComponent(AGENT.name));
-  const existing = lookup?.agents?.find(a => a.name === AGENT.name);
-  if (existing?.did) {
-    console.log(`♻️  Reusing existing agent: ${existing.did}`);
-    return { did: existing.did, secret: FIXED_SECRET };
-  }
+  console.log('🔧 Registering new agent...');
+  const res = await fetch(`${ARIA_URL}/v1/agents`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: 'sim-lastressss',
+      scope: [
+        'process:sale',
+        'read:inventory',
+        'generate:report',
+        'create:invoice',
+        'read:customer'
+      ]
+    })
+  });
 
-  console.log('🔧 Registering new agent…');
-  const data = await ariaPost('/v1/agents', AGENT);
-  if (!data?.agent?.did) {
+  const data = await res.json();
+  if (!res.ok) {
     throw new Error(`Agent registration failed: ${JSON.stringify(data)}`);
   }
 
-  console.log(`✅ Agent registered: ${data.agent.did}`);
-  return { did: data.agent.did, secret: FIXED_SECRET };
+  AGENT_DID = data.agent.did;
+  AGENT_SECRET = data.secret;
+  console.log(`✅ Agent registered: ${AGENT_DID}`);
 }
 
 // ── HMAC signing (v1) ─────────────────────────────────────────────────────────
@@ -217,17 +221,17 @@ async function main() {
   console.log('🚀 ARIA Simulator');
   console.log(`🌐 ${ARIA_URL}`);
 
-  const { did, secret } = await ensureAgent();
+  await ensureAgent();
 
   // Stats every 5 min
   setInterval(printStats, 5 * 60 * 1000);
 
   // Trust score every 10 min
-  setInterval(() => checkTrustScore(did), 10 * 60 * 1000);
-  await checkTrustScore(did);
+  setInterval(() => checkTrustScore(AGENT_DID), 10 * 60 * 1000);
+  await checkTrustScore(AGENT_DID);
 
   console.log('▶️  Starting event loop (15-45s between events)...\n');
-  await runLoop(did, secret);
+  await runLoop(AGENT_DID, AGENT_SECRET);
 }
 
 main().catch(err => {
