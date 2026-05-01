@@ -23,6 +23,10 @@ export interface TrackResult {
   };
 }
 
+export interface TrackOptions {
+  mode?: 'light' | 'enforce';
+}
+
 export class ARIAClient {
   private baseUrl: string;
   private apiKey: string;
@@ -55,10 +59,31 @@ export class ARIAClient {
     agentDid: string,
     secret: string,
     action: string,
-    fn: () => Promise<unknown>
+    fn: () => Promise<unknown>,
+    options: TrackOptions = {}
   ): Promise<TrackResult> {
-    const eventId = randomUUID();
-    const timestamp = new Date().toISOString();
+    const mode = options.mode ?? 'enforce';
+
+    if (mode === 'light') {
+      const startTime = Date.now();
+      let outcome: 'success' | 'error' = 'success';
+      let fnError: string | undefined;
+
+      try {
+        await fn();
+      } catch (err) {
+        outcome = 'error';
+        fnError = err instanceof Error ? err.message : String(err);
+      }
+
+      const durationMs = Date.now() - startTime;
+
+      this.sendEventBackground(agentDid, secret, action, outcome, durationMs, fnError);
+
+      return { success: true, eventId: randomUUID() };
+    }
+
+    // enforce mode — blocking, existing behavior
     const start = Date.now();
     let outcome: 'success' | 'error' = 'success';
     let error: string | undefined;
@@ -71,6 +96,36 @@ export class ARIAClient {
     }
 
     const durationMs = Date.now() - start;
+    return this.buildAndSendEvent(agentDid, secret, action, outcome, durationMs, error);
+  }
+
+  private sendEventBackground(
+    agentDid: string,
+    secret: string,
+    action: string,
+    outcome: 'success' | 'error',
+    durationMs: number,
+    error?: string
+  ): void {
+    (async () => {
+      try {
+        await this.buildAndSendEvent(agentDid, secret, action, outcome, durationMs, error);
+      } catch {
+        // Silently fail — fire and forget
+      }
+    })();
+  }
+
+  private async buildAndSendEvent(
+    agentDid: string,
+    secret: string,
+    action: string,
+    outcome: 'success' | 'error',
+    durationMs: number,
+    error?: string
+  ): Promise<TrackResult> {
+    const eventId = randomUUID();
+    const timestamp = new Date().toISOString();
     const payload = `${eventId}:${agentDid}:${action}:${outcome}:${timestamp}`;
     const signature = createHmac('sha256', secret).update(payload).digest('hex');
 
@@ -110,7 +165,7 @@ export class ARIAClient {
   }
 
   async listAgents(name?: string) {
-    const url = name 
+    const url = name
       ? `${this.baseUrl}/v1/agents?name=${encodeURIComponent(name)}`
       : `${this.baseUrl}/v1/agents`;
     const res = await fetch(url, {
