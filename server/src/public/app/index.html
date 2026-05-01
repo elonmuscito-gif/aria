@@ -177,21 +177,21 @@
     
     .auth-card {
       background: #07090f;
-      border: 1px solid rgba(255,255,255,0.05);
-      border-top: 2px solid var(--gold);
+      border: 1px solid rgba(201,168,76,0.3);
+      border-top: 2px solid #c9a84c;
       border-radius: 8px;
       padding: 40px;
       width: 100%;
       max-width: 400px;
       box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-      transform: translateY(28px);
-      opacity: 0;
-      transition: opacity .6s ease,transform .6s ease;
+      opacity: 1 !important;
+      transform: none !important;
     }
-    
-    .auth-card.visible {
-      opacity: 1;
-      transform: translateY(0);
+
+    .auth-card.visible,
+    .auth-card {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
     }
     
     .auth-logo {
@@ -928,6 +928,15 @@
   </style>
 </head>
 <body>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const card = document.querySelector('.auth-card');
+    if (card) card.classList.add('visible');
+  });
+  setTimeout(() => {
+    document.querySelector('.auth-card')?.classList.add('visible');
+  }, 50);
+</script>
 
 <!-- ══════════════════════════════════════════════════════════
      AUTH SCREEN
