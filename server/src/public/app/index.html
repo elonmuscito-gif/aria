@@ -29,6 +29,65 @@
       --light:   #070910;
     }
 
+    /* FORCE ALL TEXT VISIBLE */
+    body, body * {
+      color: #f8f4ee;
+    }
+
+    input, textarea, select {
+      color: #f8f4ee !important;
+      background: #07090f !important;
+      border: 1px solid rgba(255,255,255,0.15) !important;
+    }
+
+    input::placeholder {
+      color: rgba(248,244,238,0.35) !important;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    /* CARDS */
+    .card, [class*="card"],
+    .stat-card, .agent-row,
+    .event-item, .section {
+      color: #f8f4ee !important;
+    }
+
+    /* TABLES */
+    table, th, td, tr {
+      color: #f8f4ee !important;
+      border-color: rgba(255,255,255,0.08) !important;
+    }
+
+    /* LINKS */
+    a {
+      color: var(--gold-lt) !important;
+    }
+
+    /* LABELS AND SMALL TEXT */
+    label, span, p, h1, h2, h3, h4, small {
+      color: inherit;
+    }
+
+    /* BADGES */
+    .badge-success {
+      background: rgba(40,200,65,0.15) !important;
+      color: #28c841 !important;
+      border: 1px solid rgba(40,200,65,0.3) !important;
+    }
+    .badge-error {
+      background: rgba(201,76,76,0.15) !important;
+      color: #c94c4c !important;
+      border: 1px solid rgba(201,76,76,0.3) !important;
+    }
+    .badge-violation {
+      background: rgba(201,168,76,0.15) !important;
+      color: #e8c87a !important;
+      border: 1px solid rgba(201,168,76,0.3) !important;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
 
