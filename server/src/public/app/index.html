@@ -925,6 +925,71 @@
       .stats-row { grid-template-columns: 1fr 1fr; }
       .detail-stats { grid-template-columns: 1fr; }
     }
+
+    /* ── FORCE VISIBILITY — OVERRIDE ALL ── */
+    #dashboard-screen,
+    #dashboard-screen * {
+      color: #f8f4ee !important;
+    }
+
+    #dashboard-screen .stat-value { color: var(--gold) !important; }
+    #dashboard-screen .stat-value.gold { color: #c9a84c !important; }
+    #dashboard-screen .stat-value.success { color: #28c841 !important; }
+    #dashboard-screen .stat-value.error { color: #c94c4c !important; }
+    #dashboard-screen .stat-value.warning { color: #ffbd2e !important; }
+
+    #dashboard-screen .stat-label { color: rgba(248,244,238,0.45) !important; }
+    #dashboard-screen .stat-desc { color: rgba(248,244,238,0.35) !important; }
+
+    #dashboard-screen .agent-row.header { color: #c9a84c !important; }
+    #dashboard-screen .agent-row.header > div { color: #c9a84c !important; }
+    #dashboard-screen .agent-name { color: #f8f4ee !important; }
+    #dashboard-screen .agent-did { color: rgba(201,168,76,0.7) !important; }
+    #dashboard-screen .agent-events { color: rgba(248,244,238,0.75) !important; }
+    #dashboard-screen .agent-last-seen { color: rgba(248,244,238,0.45) !important; }
+
+    #dashboard-screen .trust-score.high { color: #28c841 !important; }
+    #dashboard-screen .trust-score.medium { color: #ffbd2e !important; }
+    #dashboard-screen .trust-score.low { color: #c94c4c !important; }
+
+    #dashboard-screen .trust-badge.trusted {
+      background: rgba(40,200,65,0.1) !important;
+      color: #28c841 !important;
+    }
+    #dashboard-screen .trust-badge.neutral {
+      background: rgba(255,189,46,0.1) !important;
+      color: #ffbd2e !important;
+    }
+    #dashboard-screen .trust-badge.untrusted {
+      background: rgba(201,76,76,0.1) !important;
+      color: #c94c4c !important;
+    }
+
+    #dashboard-screen .event-action { color: #f8f4ee !important; }
+    #dashboard-screen .event-agent { color: rgba(248,244,238,0.55) !important; }
+    #dashboard-screen .event-time { color: rgba(248,244,238,0.4) !important; }
+
+    #dashboard-screen .section-title { color: #c9a84c !important; }
+    #dashboard-screen .tab { color: rgba(248,244,238,0.55) !important; }
+    #dashboard-screen .tab.active { color: #e8c87a !important; }
+
+    #dashboard-screen .navbar-email { color: rgba(248,244,238,0.55) !important; }
+    #dashboard-screen .navbar-logo-text { color: #e8c87a !important; }
+
+    #dashboard-screen .stat-card {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
+    }
+
+    #dashboard-screen .card {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
+    }
+
+    #dashboard-screen .detail-stat {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
+    }
   </style>
 </head>
 <body>
