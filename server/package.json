@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node test.mjs",
+    "test:crypto": "tsx --env-file=.env src/tests/crypto.test.ts",
+    "test:hmac": "tsx src/tests/hmac.test.ts",
+    "test:api": "tsx src/tests/api.test.ts",
+    "test": "npm run test:crypto && npm run test:hmac && npm run test:api",
     "start": "npx concurrently \"npx tsx src/index.ts\" \"npx tsx src/membrane.ts\"",
     "start:full": "npx concurrently \"npx tsx src/index.ts\" \"npx tsx src/membrane.ts\"",
     "membrane": "npx tsx src/membrane.ts",
