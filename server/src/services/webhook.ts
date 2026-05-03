@@ -1,5 +1,6 @@
 import { createHmac } from 'crypto';
 import { query } from '../db/pool.js';
+import { getRedisClient } from '../utils/redis.js';
 
 export interface WebhookPayload {
   alert: string;
@@ -18,6 +19,22 @@ export interface WebhookPayload {
 
 const RETRY_DELAYS = [30_000, 120_000, 600_000]; // 30s, 2min, 10min
 
+async function acquireWebhookLock(
+  webhookId: string,
+  eventKey: string
+): Promise<boolean> {
+  const redis = getRedisClient();
+  if (!redis) return true; // fail open if Redis unavailable
+
+  const lockKey = `webhook:lock:${webhookId}:${eventKey}`;
+  try {
+    const result = await redis.set(lockKey, '1', 'EX', 60, 'NX');
+    return result === 'OK';
+  } catch {
+    return true; // fail open on Redis errors
+  }
+}
+
 export async function triggerWebhooks(
   userId: string,
   eventType: string,
@@ -33,6 +50,21 @@ export async function triggerWebhooks(
     );
 
     for (const webhook of result.rows) {
+      // Build unique event key for deduplication
+      const eventKey = [
+        payload.reason,
+        payload.agent.did,
+        payload.timestamp
+      ].join(':');
+
+      const acquired = await acquireWebhookLock(webhook.id, eventKey);
+      if (!acquired) {
+        console.log(
+          `[webhook] Skipping duplicate delivery for ${webhook.id}:${eventKey}`
+        );
+        continue;
+      }
+
       await deliverWithRetry(webhook, payload);
     }
   } catch (err) {

@@ -8,7 +8,7 @@ async function runTests() {
   // Test 1: Health endpoint responds
   const healthRes = await fetch(`${BASE_URL}/health`);
   assert.strictEqual(healthRes.status, 200, 'Health must return 200');
-  const health = await healthRes.json();
+  const health = await healthRes.json() as { status: string };
   assert.strictEqual(health.status, 'ok', 'Health status must be ok');
   console.log('✅ Test 1: /health returns 200 ok');
 
