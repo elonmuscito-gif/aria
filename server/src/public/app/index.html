@@ -701,14 +701,14 @@
       font-family: 'Cormorant Garamond', serif;
       font-size: 28px;
       font-weight: 600;
-      color: var(--white);
+      color: #f8f4ee !important;
       margin-bottom: 6px;
     }
-    
+
     .detail-did {
       font-family: 'JetBrains Mono', monospace;
       font-size: 13px;
-      color: rgba(248,244,238,0.45);
+      color: rgba(248,244,238,0.45) !important;
       margin-bottom: 16px;
     }
     
@@ -761,8 +761,8 @@
       border-radius: 8px;
       padding: 20px;
       text-align: center;
-      transform: translateY(28px);
-      opacity: 0;
+      transform: none;
+      opacity: 1;
       transition: opacity .6s ease,transform .6s ease;
     }
     
@@ -1643,6 +1643,8 @@
         <div class="card" id="detail-events"><div class="loading"><div class="spinner"></div></div></div>
       `;
 
+      document.querySelectorAll('.detail-stat').forEach(el => el.classList.add('visible'));
+
       const evts    = await apiCall(`/v1/events?agentDid=${encodeURIComponent(did)}&limit=20`);
       const evtList = evts.events || [];
 
@@ -1650,7 +1652,7 @@
         document.getElementById('detail-events').innerHTML =
           `<div class="empty-state"><h3>No events yet</h3></div>`;
       } else {
-        let html = `<div class="detail-event header">
+        let html = `<div class="detail-event header" style="color:#c9a84c">
           <div>Action</div><div>Outcome</div><div>Duration</div><div>Time</div></div>`;
         evtList.forEach(ev => {
           const isViolation = ev.server_within_scope === false;
@@ -1660,10 +1662,10 @@
           const outcomeLabel = isViolation ? 'SCOPE VIOLATION'
             : ev.outcome.toUpperCase();
           html += `<div class="detail-event">
-            <div style="color:#f8f4ee">${escapeHtml(ev.action)}</div>
+            <div style="color:#f8f4ee;font-weight:500">${escapeHtml(ev.action)}</div>
             <div style="color:${outcomeColor};font-size:11px;font-weight:600;letter-spacing:0.5px">${outcomeLabel}</div>
-            <div style="font-family:var(--mono);font-size:13px;color:rgba(248,244,238,0.65)">${ev.duration_ms}ms</div>
-            <div style="color:rgba(248,244,238,0.45)">${relativeTime(ev.client_ts)}</div>
+            <div style="color:rgba(248,244,238,0.65);font-family:'JetBrains Mono',monospace;font-size:13px">${ev.duration_ms}ms</div>
+            <div style="color:rgba(248,244,238,0.45);font-size:12px">${relativeTime(ev.client_ts)}</div>
           </div>`;
         });
         document.getElementById('detail-events').innerHTML = html;
