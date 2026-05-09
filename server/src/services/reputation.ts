@@ -39,95 +39,188 @@ class ReputationQueue {
 export const reputationQueue = new ReputationQueue();
 
 async function computeReputationIncremental(agentId: string): Promise<void> {
-  const lastSnap = await query<{ last_computed_at: string | null; prev_success_rate: string | null }>(
-    `SELECT last_computed_at, success_rate AS prev_success_rate
-     FROM reputation_snapshots WHERE agent_id = $1`,
+  const lastSnap = await query<{ prev_score: string | null }>(
+    `SELECT final_score AS prev_score FROM reputation_snapshots WHERE agent_id = $1`,
     [agentId],
   );
+  const prevScore = parseFloat(lastSnap.rows[0]?.prev_score ?? '100');
 
-  const lastComputedAt = lastSnap.rows[0]?.last_computed_at ?? null;
-  const prevScore = parseFloat(lastSnap.rows[0]?.prev_success_rate ?? '100');
+  // STEP 1 — Query success rate by time window
+  const windowResult = await query<{
+    total_7d: string;
+    success_7d: string;
+    total_14d: string;
+    success_14d: string;
+    total_30d: string;
+    success_30d: string;
+    scope_violations_30d: string;
+    hardware_conflicts_30d: string;
+    anomalies_30d: string;
+  }>(`
+    SELECT
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '7 days'
+      ) AS total_7d,
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '7 days'
+        AND outcome = 'success'
+        AND server_within_scope = true
+      ) AS success_7d,
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '14 days'
+      ) AS total_14d,
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '14 days'
+        AND outcome = 'success'
+        AND server_within_scope = true
+      ) AS success_14d,
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '30 days'
+      ) AS total_30d,
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '30 days'
+        AND outcome = 'success'
+        AND server_within_scope = true
+      ) AS success_30d,
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '30 days'
+        AND server_within_scope = false
+      ) AS scope_violations_30d,
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '30 days'
+        AND (meta->>'hardware_conflict')::boolean = true
+      ) AS hardware_conflicts_30d,
+      COUNT(*) FILTER (
+        WHERE recorded_at > NOW() - INTERVAL '30 days'
+        AND outcome = 'anomaly'
+      ) AS anomalies_30d
+    FROM events
+    WHERE agent_id = $1
+  `, [agentId]);
 
-  const result = await query<{
-    total: string;
+  const w = windowResult.rows[0];
+  if (!w) return;
+
+  // STEP 2 — Calculate weighted success rate
+  const total7d = parseInt(w.total_7d) || 0;
+  const total14d = parseInt(w.total_14d) || 0;
+  const total30d = parseInt(w.total_30d) || 0;
+
+  if (total30d === 0) return;
+
+  const rate7d = total7d > 0
+    ? (parseInt(w.success_7d) / total7d) * 100
+    : null;
+
+  const rate14d = total14d > 0
+    ? (parseInt(w.success_14d) / total14d) * 100
+    : null;
+
+  const rate30d = total30d > 0
+    ? (parseInt(w.success_30d) / total30d) * 100
+    : null;
+
+  let weightedRate: number;
+  if (rate7d !== null && rate14d !== null) {
+    weightedRate = (rate7d * 0.5) + (rate14d * 0.3) + ((rate30d ?? rate14d) * 0.2);
+  } else if (rate14d !== null) {
+    weightedRate = (rate14d * 0.6) + ((rate30d ?? rate14d) * 0.4);
+  } else {
+    weightedRate = rate30d ?? 50;
+  }
+
+  const baseScore = Math.min(85, weightedRate * 0.85);
+
+  // STEP 3 — Apply critical penalties with decay
+  const scopeViolations = parseInt(w.scope_violations_30d) || 0;
+  const hardwareConflicts = parseInt(w.hardware_conflicts_30d) || 0;
+  const anomalies = parseInt(w.anomalies_30d) || 0;
+
+  const scopePenalty = scopeViolations === 0 ? 0
+    : scopeViolations === 1 ? 15
+    : scopeViolations === 2 ? 25
+    : Math.min(50, 25 + (scopeViolations - 2) * 5);
+
+  const hardwarePenalty = hardwareConflicts === 0 ? 0
+    : hardwareConflicts === 1 ? 20
+    : Math.min(40, 20 + (hardwareConflicts - 1) * 10);
+
+  const anomalyPenalty = Math.min(20, anomalies * 3);
+
+  const totalPenalty = scopePenalty + hardwarePenalty + anomalyPenalty;
+
+  // STEP 4 — Calculate final score
+  const finalScore = Math.max(0, Math.min(100,
+    Math.round(baseScore - totalPenalty)
+  ));
+
+  const trustLevel = finalScore >= 80 ? 'TRUSTED'
+    : finalScore >= 50 ? 'NEUTRAL'
+    : 'UNTRUSTED';
+
+  // STEP 5 — Keep existing totals for display purposes
+  const totalsResult = await query<{
+    total_events: string;
     success_count: string;
     error_count: string;
     anomaly_count: string;
     scope_violation_count: string;
     hardware_conflict_count: string;
-  }>(
-    `SELECT
-       COUNT(*)                                                              AS total,
-       COUNT(*) FILTER (WHERE outcome = 'success')                          AS success_count,
-       COUNT(*) FILTER (WHERE outcome = 'error')                            AS error_count,
-       COUNT(*) FILTER (WHERE outcome = 'anomaly')                          AS anomaly_count,
-       COUNT(*) FILTER (WHERE server_within_scope = false)                  AS scope_violation_count,
-COUNT(*) FILTER (WHERE (meta->>'hardware_conflict')::boolean = true) AS hardware_conflict_count
-     FROM events
-     WHERE agent_id = $1
-       AND ($2::timestamp IS NULL OR recorded_at > $2)`,
-    [agentId, lastComputedAt],
-  );
+  }>(`
+    SELECT
+      COUNT(*) AS total_events,
+      COUNT(*) FILTER (WHERE outcome = 'success') AS success_count,
+      COUNT(*) FILTER (WHERE outcome = 'error') AS error_count,
+      COUNT(*) FILTER (WHERE outcome = 'anomaly') AS anomaly_count,
+      COUNT(*) FILTER (WHERE server_within_scope = false) AS scope_violation_count,
+      COUNT(*) FILTER (
+        WHERE (meta->>'hardware_conflict')::boolean = true
+      ) AS hardware_conflict_count
+    FROM events
+    WHERE agent_id = $1
+  `, [agentId]);
 
-  const row = result.rows[0];
-  if (!row || parseInt(row.total, 10) === 0) return;
+  const totals = totalsResult.rows[0];
+  if (!totals) return;
 
-  const historical = lastSnap.rows[0] ? await getHistoricalTotals(agentId) : getZeroTotals();
+  const successRate = parseInt(totals.total_events) > 0
+    ? ((parseInt(totals.success_count) / parseInt(totals.total_events)) * 100).toFixed(2)
+    : null;
 
-  const newTotal = historical.total + parseInt(row.total, 10);
-  const newSuccess = historical.success + parseInt(row.success_count, 10);
-  const newErrors = historical.errors + parseInt(row.error_count, 10);
-  const newAnomalies = historical.anomalies + parseInt(row.anomaly_count, 10);
-  const newScopeViolations = historical.scopeViolations + parseInt(row.scope_violation_count, 10);
-  const newHardwareConflicts = historical.hardwareConflicts + parseInt(row.hardware_conflict_count, 10);
-  
-  const successRate = newTotal > 0 ? ((newSuccess / newTotal) * 100).toFixed(2) : null;
+  // STEP 6 — Upsert reputation snapshot
+  await query(`
+    INSERT INTO reputation_snapshots
+      (agent_id, total_events, success_count, error_count, anomaly_count,
+       scope_violation_count, hardware_conflict_count, success_rate, top_actions,
+       final_score, trust_level, last_computed_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'[]',$9,$10,NOW())
+    ON CONFLICT (agent_id) DO UPDATE SET
+      total_events            = EXCLUDED.total_events,
+      success_count           = EXCLUDED.success_count,
+      error_count             = EXCLUDED.error_count,
+      anomaly_count           = EXCLUDED.anomaly_count,
+      scope_violation_count   = EXCLUDED.scope_violation_count,
+      hardware_conflict_count = EXCLUDED.hardware_conflict_count,
+      success_rate            = EXCLUDED.success_rate,
+      top_actions             = EXCLUDED.top_actions,
+      final_score             = EXCLUDED.final_score,
+      trust_level             = EXCLUDED.trust_level,
+      last_computed_at        = NOW()
+  `, [
+    agentId,
+    totals.total_events,
+    totals.success_count,
+    totals.error_count,
+    totals.anomaly_count,
+    totals.scope_violation_count,
+    totals.hardware_conflict_count,
+    successRate,
+    finalScore,
+    trustLevel,
+  ]);
 
-  // --- THE BRAIN: FINAL SCORE CALCULATION ---
-  // 1. Success adds +1 point
-  const successPoints = newSuccess;
-
-  // 2. Normal errors subtract -1 (Forgivable)
-  const errorPoints = newErrors * -1;
-
-  // 3. Scope anomalies subtract -5 (Danger)
-  const anomalyPoints = newAnomalies * -5;
-
-  // 4. Capital crimes (Hardware or Fake signatures) subtract -100 (Near death)
-  const criticalPoints = (newScopeViolations + newHardwareConflicts) * -100;
-
-  // Score cannot be less than 0 or greater than 100
-  const finalScore = Math.max(0, Math.min(100, successPoints + errorPoints + anomalyPoints + criticalPoints));
-
-  const trustLevel = finalScore >= 80 ? 'TRUSTED' : finalScore >= 50 ? 'NEUTRAL' : 'UNTRUSTED';
-
-  await query(
-    `INSERT INTO reputation_snapshots
-       (agent_id, total_events, success_count, error_count, anomaly_count,
-        scope_violation_count, hardware_conflict_count, success_rate, top_actions,
-        final_score, trust_level, last_computed_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'[]',$9,$10,NOW())
-     ON CONFLICT (agent_id) DO UPDATE SET
-       total_events             = EXCLUDED.total_events,
-       success_count            = EXCLUDED.success_count,
-       error_count              = EXCLUDED.error_count,
-       anomaly_count            = EXCLUDED.anomaly_count,
-       scope_violation_count    = EXCLUDED.scope_violation_count,
-       hardware_conflict_count  = EXCLUDED.hardware_conflict_count,
-       success_rate             = EXCLUDED.success_rate,
-       top_actions              = EXCLUDED.top_actions,
-       final_score              = EXCLUDED.final_score,
-       trust_level              = EXCLUDED.trust_level,
-       last_computed_at         = NOW()`,
-    [agentId, newTotal, newSuccess, newErrors, newAnomalies,
-     newScopeViolations, newHardwareConflicts, successRate,
-     finalScore, trustLevel],
-  );
-
-  // --- THE TRACTOR: Sync to public table for the web ---
   syncToPublicTable(agentId, finalScore).catch(() => {});
 
-  // Fire critical trust alert when score drops below 20 from a non-critical state
   if (finalScore < 20 && prevScore >= 20) {
     const agentInfo = await query<{ user_id: string | null; did: string; name: string }>(
       `SELECT ak.user_id, a.did, a.name
@@ -147,34 +240,6 @@ COUNT(*) FILTER (WHERE (meta->>'hardware_conflict')::boolean = true) AS hardware
       }).catch(() => {});
     }
   }
-}
-
-async function getHistoricalTotals(agentId: string): Promise<{
-  total: number; success: number; errors: number; anomalies: number; scopeViolations: number; hardwareConflicts: number;
-}> {
-  const res = await query<{
-    total_events: string; success_count: string; error_count: string; anomaly_count: string;
-    scope_violation_count: string; hardware_conflict_count: string;
-  }>(
-    `SELECT total_events, success_count, error_count, anomaly_count, scope_violation_count, hardware_conflict_count 
-     FROM reputation_snapshots WHERE agent_id = $1`,
-    [agentId],
-  );
-  const r = res.rows[0]!;
-  return {
-    total: parseInt(r.total_events, 10),
-    success: parseInt(r.success_count, 10),
-    errors: parseInt(r.error_count, 10),
-    anomalies: parseInt(r.anomaly_count, 10),
-    scopeViolations: parseInt(r.scope_violation_count, 10),
-    hardwareConflicts: parseInt(r.hardware_conflict_count, 10),
-  };
-}
-
-function getZeroTotals(): {
-  total: number; success: number; errors: number; anomalies: number; scopeViolations: number; hardwareConflicts: number;
-} {
-  return { total: 0, success: 0, errors: 0, anomalies: 0, scopeViolations: 0, hardwareConflicts: 0 };
 }
 
 export async function applyReputationDecay(): Promise<void> {
