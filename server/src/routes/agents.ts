@@ -212,6 +212,59 @@ agentsRouter.get("/", async (req, res) => {
   }
 });
 
+agentsRouter.post("/bulk-delete", async (req, res) => {
+  const { dids } = req.body as { dids?: string[] };
+
+  if (!Array.isArray(dids) || dids.length === 0) {
+    return res.status(400).json({
+      error: "dids array required",
+      code: "INVALID_INPUT"
+    });
+  }
+
+  try {
+    const keyResult = await query<{ user_id: string | null }>(
+      'SELECT user_id FROM api_keys WHERE id = $1',
+      [req.apiKeyId]
+    );
+    const userId = keyResult.rows[0]?.user_id ?? null;
+
+    const agentResult = await query<{ id: string }>(
+      `SELECT id FROM agents
+       WHERE did = ANY($1::text[])
+       AND (user_id = $2 OR api_key_id = $3)`,
+      [dids, userId, req.apiKeyId]
+    );
+
+    const agentIds = agentResult.rows.map(r => r.id);
+
+    if (agentIds.length === 0) {
+      return res.status(404).json({
+        error: "No agents found",
+        code: "NOT_FOUND"
+      });
+    }
+
+    await query('DELETE FROM anomalies_archive WHERE agent_id = ANY($1::uuid[])', [agentIds]);
+    await query('DELETE FROM anomalies WHERE agent_id = ANY($1::uuid[])', [agentIds]);
+    await query('DELETE FROM reputation_snapshots WHERE agent_id = ANY($1::uuid[])', [agentIds]);
+    await query('DELETE FROM events WHERE agent_id = ANY($1::uuid[])', [agentIds]);
+    await query('DELETE FROM agents WHERE id = ANY($1::uuid[])', [agentIds]);
+
+    return res.json({
+      deleted: agentIds.length,
+      message: `${agentIds.length} agents deleted`
+    });
+  } catch (err) {
+    console.error('[agents] bulk-delete error:',
+      err instanceof Error ? err.message : 'Unknown');
+    return res.status(500).json({
+      error: 'Service unavailable',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
 agentsRouter.get("/:did/secret", async (req, res) => {
   try {
     const keyResult = await query<{ user_id: string | null }>(
