@@ -4,14 +4,212 @@ import { requireApiKey } from '../middleware/auth.js';
 import { sendGateRequestEmail } from '../services/email.js';
 
 export const gateRouter = Router();
-gateRouter.use(requireApiKey);
 
 const APPROVAL_TIMEOUT_MINUTES = 5;
 
-// ── POST /v1/gate/request ─────────────────────────────
+// ── GET /v1/gate/approve/:id — Email link handler (no auth required) ──────
+gateRouter.get('/approve/:id', async (req, res) => {
+  const { id } = req.params;
+  return res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>ARIA Gate — Approve Action</title>
+  <meta charset="UTF-8">
+  <style>
+    body{font-family:system-ui;background:#04060d;
+         color:#f8f4ee;display:flex;align-items:center;
+         justify-content:center;min-height:100vh;margin:0}
+    .card{background:#07090f;border:1px solid rgba(255,255,255,0.1);
+          border-top:3px solid #28c841;border-radius:8px;
+          padding:40px;text-align:center;max-width:400px}
+    h1{color:#28c841;margin-bottom:16px}
+    p{color:rgba(248,244,238,0.6);margin-bottom:32px}
+    .btn-approve{display:block;width:100%;padding:14px;
+                 background:#28c841;color:#04060d;border:none;
+                 border-radius:6px;font-size:16px;font-weight:600;
+                 cursor:pointer}
+    .btn-deny{display:block;width:100%;padding:14px;margin-top:12px;
+              background:transparent;color:rgba(248,244,238,0.4);
+              border:1px solid rgba(255,255,255,0.1);
+              border-radius:6px;font-size:14px;cursor:pointer;
+              text-decoration:none;box-sizing:border-box}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>&#x2705; Approve Action</h1>
+    <p>Your AI agent is waiting for your approval
+       to execute this action.</p>
+    <button class="btn-approve" onclick="resolve('approve')">
+      Approve Action
+    </button>
+    <a href="/v1/gate/deny-page/${id}" class="btn-deny">
+      Deny instead
+    </a>
+  </div>
+  <script>
+    async function resolve(action) {
+      const r = await fetch('/v1/gate/' + action + '/${id}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: '{}'
+      });
+      if (r.ok) {
+        document.querySelector('.card').innerHTML =
+          '<h1 style="color:#28c841">&#x2705; Action Approved</h1>' +
+          '<p>Your agent can now proceed with the action.</p>' +
+          '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
+      } else {
+        document.querySelector('.card').innerHTML =
+          '<h1 style="color:#c94c4c">&#x274C; Error</h1>' +
+          '<p>Request not found, already resolved, or expired.</p>' +
+          '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
+      }
+    }
+  </script>
+</body>
+</html>`);
+});
+
+// ── GET /v1/gate/deny-page/:id — Deny confirmation page (no auth required) ─
+gateRouter.get('/deny-page/:id', async (req, res) => {
+  const { id } = req.params;
+  return res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>ARIA Gate — Deny Action</title>
+  <meta charset="UTF-8">
+  <style>
+    body{font-family:system-ui;background:#04060d;
+         color:#f8f4ee;display:flex;align-items:center;
+         justify-content:center;min-height:100vh;margin:0}
+    .card{background:#07090f;border:1px solid rgba(255,255,255,0.1);
+          border-top:3px solid #c94c4c;border-radius:8px;
+          padding:40px;text-align:center;max-width:400px}
+    h1{color:#c94c4c;margin-bottom:16px}
+    p{color:rgba(248,244,238,0.6);margin-bottom:32px}
+    .btn-deny{display:block;width:100%;padding:14px;
+              background:#c94c4c;color:#f8f4ee;border:none;
+              border-radius:6px;font-size:16px;font-weight:600;
+              cursor:pointer}
+    .btn-back{display:block;width:100%;padding:14px;margin-top:12px;
+              background:transparent;color:rgba(248,244,238,0.4);
+              border:1px solid rgba(255,255,255,0.1);
+              border-radius:6px;font-size:14px;cursor:pointer;
+              text-decoration:none;box-sizing:border-box}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>&#x274C; Deny Action</h1>
+    <p>This will prevent your AI agent from executing
+       the requested action.</p>
+    <button class="btn-deny" onclick="denyAction()">
+      Deny Action
+    </button>
+    <a href="/app" class="btn-back">Back to dashboard</a>
+  </div>
+  <script>
+    async function denyAction() {
+      const r = await fetch('/v1/gate/deny/${id}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: '{}'
+      });
+      if (r.ok) {
+        document.querySelector('.card').innerHTML =
+          '<h1 style="color:#c94c4c">&#x274C; Action Denied</h1>' +
+          '<p>Your agent has been blocked from executing this action.</p>' +
+          '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
+      } else {
+        document.querySelector('.card').innerHTML =
+          '<h1 style="color:#c94c4c">&#x274C; Error</h1>' +
+          '<p>Request not found or already resolved.</p>' +
+          '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
+      }
+    }
+  </script>
+</body>
+</html>`);
+});
+
+// ── POST /v1/gate/approve/:id (no auth — UUID is the secret) ─────────────
+gateRouter.post('/approve/:id', async (req, res) => {
+  try {
+    const result = await query<{ id: string; status: string }>(
+      `UPDATE gate_requests
+       SET status = 'approved',
+           resolved_at = NOW(),
+           resolved_by = 'email-link'
+       WHERE id = $1
+         AND status = 'pending'
+         AND timeout_at > NOW()
+       RETURNING id, status`,
+      [req.params.id]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).json({
+        error: 'Gate request not found, already resolved, or timed out',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    return res.json({
+      requestId: result.rows[0].id,
+      status: 'approved',
+      message: 'Action approved'
+    });
+  } catch (err) {
+    console.error('[gate] POST /approve error:',
+      err instanceof Error ? err.message : 'Unknown');
+    return res.status(500).json({
+      error: 'Service unavailable',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// ── POST /v1/gate/deny/:id (no auth — UUID is the secret) ────────────────
+gateRouter.post('/deny/:id', async (req, res) => {
+  try {
+    const result = await query<{ id: string; status: string }>(
+      `UPDATE gate_requests
+       SET status = 'denied',
+           resolved_at = NOW(),
+           resolved_by = 'email-link'
+       WHERE id = $1
+         AND status = 'pending'
+       RETURNING id, status`,
+      [req.params.id]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).json({
+        error: 'Gate request not found or already resolved',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    return res.json({
+      requestId: result.rows[0].id,
+      status: 'denied',
+      message: 'Action denied'
+    });
+  } catch (err) {
+    console.error('[gate] POST /deny error:',
+      err instanceof Error ? err.message : 'Unknown');
+    return res.status(500).json({
+      error: 'Service unavailable',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// ── POST /v1/gate/request ─────────────────────────────────────────────────
 // SDK calls this when agent attempts a gated action.
 // Returns { requestId, status } immediately.
-gateRouter.post('/request', async (req, res) => {
+gateRouter.post('/request', requireApiKey, async (req, res) => {
   const { agentDid, action, context } = req.body as {
     agentDid?: string;
     action?: string;
@@ -124,9 +322,9 @@ gateRouter.post('/request', async (req, res) => {
   }
 });
 
-// ── GET /v1/gate/request/:id ──────────────────────────
+// ── GET /v1/gate/request/:id ──────────────────────────────────────────────
 // SDK polls this to check approval status.
-gateRouter.get('/request/:id', async (req, res) => {
+gateRouter.get('/request/:id', requireApiKey, async (req, res) => {
   try {
     const result = await query<{
       id: string; status: string; timeout_at: string;
@@ -181,84 +379,9 @@ gateRouter.get('/request/:id', async (req, res) => {
   }
 });
 
-// ── POST /v1/gate/approve/:id ─────────────────────────
-gateRouter.post('/approve/:id', async (req, res) => {
-  try {
-    const result = await query<{ id: string; status: string }>(
-      `UPDATE gate_requests
-       SET status = 'approved',
-           resolved_at = NOW(),
-           resolved_by = $1
-       WHERE id = $2
-         AND owner_email = $3
-         AND status = 'pending'
-         AND timeout_at > NOW()
-       RETURNING id, status`,
-      [req.ownerEmail, req.params.id, req.ownerEmail]
-    );
-
-    if (!result.rows[0]) {
-      return res.status(404).json({
-        error: 'Gate request not found, already resolved, or timed out',
-        code: 'NOT_FOUND'
-      });
-    }
-
-    return res.json({
-      requestId: result.rows[0].id,
-      status: 'approved',
-      message: 'Action approved'
-    });
-  } catch (err) {
-    console.error('[gate] POST /approve error:',
-      err instanceof Error ? err.message : 'Unknown');
-    return res.status(500).json({
-      error: 'Service unavailable',
-      code: 'INTERNAL_ERROR'
-    });
-  }
-});
-
-// ── POST /v1/gate/deny/:id ────────────────────────────
-gateRouter.post('/deny/:id', async (req, res) => {
-  try {
-    const result = await query<{ id: string; status: string }>(
-      `UPDATE gate_requests
-       SET status = 'denied',
-           resolved_at = NOW(),
-           resolved_by = $1
-       WHERE id = $2
-         AND owner_email = $3
-         AND status = 'pending'
-       RETURNING id, status`,
-      [req.ownerEmail, req.params.id, req.ownerEmail]
-    );
-
-    if (!result.rows[0]) {
-      return res.status(404).json({
-        error: 'Gate request not found or already resolved',
-        code: 'NOT_FOUND'
-      });
-    }
-
-    return res.json({
-      requestId: result.rows[0].id,
-      status: 'denied',
-      message: 'Action denied'
-    });
-  } catch (err) {
-    console.error('[gate] POST /deny error:',
-      err instanceof Error ? err.message : 'Unknown');
-    return res.status(500).json({
-      error: 'Service unavailable',
-      code: 'INTERNAL_ERROR'
-    });
-  }
-});
-
-// ── GET /v1/gate/pending ──────────────────────────────
+// ── GET /v1/gate/pending ──────────────────────────────────────────────────
 // Dashboard lists pending approvals for this user.
-gateRouter.get('/pending', async (req, res) => {
+gateRouter.get('/pending', requireApiKey, async (req, res) => {
   try {
     const keyResult = await query<{ user_id: string | null }>(
       'SELECT user_id FROM api_keys WHERE id = $1',

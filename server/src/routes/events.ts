@@ -644,7 +644,15 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
   });
 
   const agent = await query<{ id: string; did: string; scope: string[]; hmac_key: string | null; meta: Record<string, unknown> | null; signing_version: number }>(
-    `SELECT id, did, scope, hmac_key, meta, signing_version FROM agents WHERE did = $1 AND api_key_id = $2`,
+    `SELECT id, did, scope, hmac_key, meta, signing_version
+     FROM agents
+     WHERE did = $1 AND (
+       api_key_id = $2
+       OR user_id = (
+         SELECT user_id FROM api_keys
+         WHERE id = $2 AND user_id IS NOT NULL
+       )
+     )`,
     [event.agentDid, apiKeyId],
   );
 
@@ -724,8 +732,6 @@ async function ingestEvent(event: IncomingEvent, apiKeyId: string): Promise<{
   if (hardwareConflict) {
     finalMeta = { ...(finalMeta ?? {}), hardware_conflict: true };
   }
-
-  // --- FIN DE DETECCIÓN DE ANOMALÍAS ---
 
   try {
     await query(

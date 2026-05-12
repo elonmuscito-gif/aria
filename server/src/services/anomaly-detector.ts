@@ -66,14 +66,6 @@ export async function recordAnomaly(params: {
 export async function cleanupOldAnomalies() {
   try {
     await query(
-      "ALTER TABLE anomalies ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT 'legacy'",
-    );
-
-    await query(
-      "ALTER TABLE anomalies_archive ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT 'legacy'",
-    );
-
-    await query(
       `INSERT INTO anomalies_archive
         (id, event_id, agent_id, action, reason, detected_at, acknowledged)
        SELECT id, event_id, agent_id, action, reason, detected_at, acknowledged

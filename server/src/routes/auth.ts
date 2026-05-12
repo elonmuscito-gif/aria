@@ -224,7 +224,7 @@ authRouter.get("/confirm", async (req, res) => {
   const { token } = req.query as { token?: string };
 
   if (!token || typeof token !== "string" || token.length !== 64) {
-    return res.status(400).send(confirmPageHtml('error', 'Invalid confirmation link.'));
+    return res.status(400).send(confirmPageHtml('Invalid confirmation link.'));
   }
 
   try {
@@ -239,13 +239,13 @@ authRouter.get("/confirm", async (req, res) => {
     );
 
     if (!result.rows[0]) {
-      return res.status(400).send(confirmPageHtml('error', 'This confirmation link is invalid or has already been used.'));
+      return res.status(400).send(confirmPageHtml('This confirmation link is invalid or has already been used.'));
     }
 
     const user = result.rows[0]!;
 
     if (new Date() > new Date(user.confirmation_token_expires)) {
-      return res.status(400).send(confirmPageHtml('error', 'This confirmation link has expired. Please register again.'));
+      return res.status(400).send(confirmPageHtml('This confirmation link has expired. Please register again.'));
     }
 
     // Mark verified, clear token
@@ -269,29 +269,12 @@ authRouter.get("/confirm", async (req, res) => {
       </body></html>`);
   } catch (e) {
     console.error("[auth] Confirm error:", e instanceof Error ? e.message : "Unknown");
-    res.status(500).send(confirmPageHtml('error', 'Service unavailable. Please try again.'));
+    res.status(500).send(confirmPageHtml('Service unavailable. Please try again.'));
   }
 });
 
 // Tiny HTML response for the confirmation flow
-function confirmPageHtml(
-  type: 'success' | 'error',
-  message: string,
-  apiKey?: string,
-  userJson?: string
-): string {
-  if (type === 'success' && apiKey) {
-    return `<!DOCTYPE html><html><head><title>ARIA — Email Confirmed</title>
-<style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fff}</style>
-</head><body><p style="color:#666">Confirming your account…</p>
-<script>
-try {
-  localStorage.setItem('aria_api_key', ${JSON.stringify(apiKey)});
-  localStorage.setItem('aria_user', ${JSON.stringify(userJson ?? '{}')});
-} catch(e){}
-window.location.href = '/app?confirmed=1';
-</script></body></html>`;
-  }
+function confirmPageHtml(message: string): string {
   return `<!DOCTYPE html><html><head><title>ARIA — Confirmation Error</title>
 <style>body{font-family:system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fff;gap:16px}</style>
 </head><body>

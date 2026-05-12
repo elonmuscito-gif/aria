@@ -256,19 +256,25 @@ app.post("/v1/api-keys", apiLimiter, requireApiKey, async (req, res) => {
   }
 
   try {
+    const userResult = await query<{ user_id: string | null }>(
+      'SELECT user_id FROM api_keys WHERE id = $1',
+      [req.apiKeyId]
+    );
+    const userId = userResult.rows[0]?.user_id ?? null;
+
     const newKey = randomUUID();
     const keySha256 = createHash("sha256").update(newKey).digest("hex");
     const keyHash = await bcrypt.hash(newKey, 10);
-    
-    const result = await query<{ id: string }>(
-      "INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-      [randomUUID(), keyHash, keySha256, label.trim(), req.ownerEmail]
+
+    await query<{ id: string }>(
+      "INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email, user_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+      [randomUUID(), keyHash, keySha256, label.trim(), req.ownerEmail, userId]
     );
 
-    res.status(201).json({ 
-      api_key: newKey, 
-      label: label.trim(), 
-      created_at: new Date().toISOString() 
+    res.status(201).json({
+      api_key: newKey,
+      label: label.trim(),
+      created_at: new Date().toISOString()
     });
   } catch (e) {
     console.error("[api-keys] Error:", e instanceof Error ? e.message : "Unknown error");
@@ -282,14 +288,20 @@ app.post("/v1/api-keys/rotate", apiLimiter, requireApiKey, async (req, res) => {
   const newLabel = label?.trim() || "rotated-key";
 
   try {
+    const userResult = await query<{ user_id: string | null }>(
+      'SELECT user_id FROM api_keys WHERE id = $1',
+      [req.apiKeyId]
+    );
+    const userId = userResult.rows[0]?.user_id ?? null;
+
     const newKey = randomUUID();
     const keySha256 = createHash("sha256").update(newKey).digest("hex");
     const keyHash = await bcrypt.hash(newKey, 10);
-    
+
     // Insert new key
     await query(
-      "INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email) VALUES ($1, $2, $3, $4, $5)",
-      [randomUUID(), keyHash, keySha256, newLabel, req.ownerEmail]
+      "INSERT INTO api_keys (id, key_hash, key_sha256, label, owner_email, user_id) VALUES ($1, $2, $3, $4, $5, $6)",
+      [randomUUID(), keyHash, keySha256, newLabel, req.ownerEmail, userId]
     );
 
     // Revoke old key
