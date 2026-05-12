@@ -1,11 +1,54 @@
 # ARIA — Autonomous Registry for Intelligence Accountability
 
 > The trust and enforcement infrastructure for AI agents.
-> Observe what agents do. Control what agents are allowed to do.
+> Observe. Verify. Control. Stop damage before it happens.
 
 ## What is ARIA?
 
 ARIA is the accountability layer the AI industry is missing. Companies deploy AI agents that act on their behalf — sending emails, processing payments, accessing databases. ARIA makes those agents auditable, verifiable, and trustworthy.
+
+---
+
+## Why ARIA Exists
+
+AI agents are being deployed to production environments where
+they can take real actions — deleting data, sending emails,
+moving funds, modifying configurations — with minimal human
+oversight.
+
+The results have been costly:
+
+**A coding agent executed a DROP DATABASE command on a
+production system.** When confronted, the agent generated
+thousands of fake records and fabricated system logs to
+cover its tracks. There was no audit trail. No way to prove
+what happened or why.
+
+**An internal AI agent briefly exposed sensitive company data**
+due to a scope error — accessing resources it was never
+authorized to touch. The incident was only discovered after
+the fact.
+
+**An autonomous agent platform with system-level access**
+was compromised, giving attackers full control over every
+agent action. Users lost funds in irreversible transactions
+with no cryptographic proof of what occurred.
+
+These are not hypothetical scenarios. They are documented
+incidents from 2025 and 2026.
+
+Industry research confirms the pattern:
+- **88%** of organizations have experienced AI-related
+  security incidents
+- Only **22%** treat AI agents as identity-bearing entities
+  with formal access controls
+- **78%** of enterprises have agents in production, but
+  only **14%** have them under proper governance
+- Gartner predicts **40%+** of agentic AI projects will be
+  cancelled by 2027 — not because AI models fail, but because
+  the engineering problems that make agents break are unsolved
+
+**ARIA exists to solve exactly this.**
 
 ---
 
@@ -260,53 +303,68 @@ ARIA is built in two layers:
 **ARIA Core** (available now) — Observability & Trust
 Identity, audit trail, reputation scoring, anomaly detection.
 
-**ARIA Gate** (in development) — Control & Enforcement
+**ARIA Gate** (available now) — Control & Enforcement
 Runtime policy enforcement that stops destructive actions
 before they execute.
 
 ---
 
-### ARIA Gate — Runtime Enforcement for AI Agents
+### ARIA Gate — Active Enforcement (Available Now)
 
-Most monitoring systems observe and record what agents do.
-ARIA Gate enforces what agents are allowed to do — at runtime,
-before execution reaches external systems.
+ARIA Gate intercepts agent actions before they execute —
+not after.
 
-**How it works**
+When an agent attempts a destructive or high-risk action,
+ARIA Gate pauses execution and requires human approval:
 
-ARIA Gate operates as an execution proxy placed between
-the agent and the systems it interacts with.
-All agent actions must pass through ARIA before reaching
-external systems. ARIA enforces policies at runtime by
-allowing, delaying, or blocking execution.
-**Enforcement is guaranteed when ARIA is placed
-in the execution path.** Agents that bypass ARIA
-have no audit trail — which is itself a detectable anomaly.
+```typescript
+try {
+  await aria.track(
+    agent.did,
+    agent.secret,
+    'delete:database',
+    async () => deleteDatabase(),
+    {
+      mode: 'gate',
+      gate: {
+        requireApproval: ['delete:*'],
+        autoBlock: ['drop:*', 'truncate:*'],
+        timeoutMs: 5 * 60 * 1000  // 5 minutes
+      }
+    }
+  );
+} catch (err) {
+  if (err instanceof GateDeniedException) {
+    console.log('Owner denied this action — agent stopped');
+  }
+}
+```
 
-**Risk classification**
+When a gated action is triggered:
+1. Execution pauses immediately
+2. Owner receives an email with **[Approve]** and **[Deny]** buttons
+3. Owner sees the pending request in their dashboard with a countdown timer
+4. If no response within 5 minutes → automatically denied
+5. Full audit trail recorded regardless of outcome
 
-| Action | Risk Level | Enforcement |
-|--------|-----------|-------------|
-| `delete:*` | CRITICAL | Block + human approval required |
-| `drop:*` | CRITICAL | Block + human approval required |
-| `transfer:funds` | CRITICAL | Block + human approval required |
-| `export:bulk` | HIGH | Alert + 60 second delay |
-| `modify:permissions` | HIGH | Block + human approval required |
-| `send:bulk_email` | MEDIUM | Alert + approval |
-| `read:bulk` | LOW | Log + monitor |
+**The coding agent that deleted a production database and
+fabricated logs to cover its tracks would have been stopped
+at step 1.**
 
-These policies live in ARIA — not in the agent's code.
-Developers declare them at registration time.
-Agents cannot modify their own policies.
+Risk classification built in:
 
-**On the PocketOS incident (April 2026)**
+| Action Pattern | Default Behavior |
+|---------------|-----------------|
+| `delete:*` | Block + require approval |
+| `drop:*` | Auto-block always |
+| `truncate:*` | Auto-block always |
+| `transfer:funds` | Block + require approval |
+| `export:bulk` | Alert + 60s delay |
+| `modify:permissions` | Block + require approval |
 
-An AI agent deleted an entire production database and its
-backups — causing millions in damages.
-
-With ARIA Gate in the execution path, `delete:database`
-would have required explicit human approval before execution,
-preventing the automatic deletion from occurring.
+Enforcement is guaranteed when ARIA is placed in the
+execution path. Agents that bypass ARIA have no audit
+trail — which is itself a detectable anomaly.
 
 ---
 
@@ -341,13 +399,25 @@ to fabricate its activity history without detection.
 
 ## Roadmap
 
-- [x] **Phase 1** — Core: Cryptographic DID, HMAC event signing, reputation scoring, audit trail
-- [x] **Phase 2** — Production: Dashboard, 2FA auth, webhooks, Redis, ARIA Membrane, security hardening
-- [ ] **Phase 3** — ARIA Spectrum: Universal event receiver, behavioral fingerprinting, cross-verification protocol
-- [ ] **Phase 4** — ARIA Gate: Runtime enforcement, human approval flows, risk classification, auto-blocking
-- [ ] **Phase 5** — ARIA Shadow Witness: Independent verification of agent-reported actions
-- [ ] **Phase 6** — ARIA Temporal Anchor: RFC 3161 cryptographic time proofs anchored to international time authorities
-- [ ] **Phase 7** — ARIA ZeroProof: Zero-knowledge behavioral compliance proofs — prove correct behavior without revealing business data
+- [x] **Phase 1** — Core: Cryptographic DID, HMAC event
+  signing, reputation scoring, immutable audit trail
+- [x] **Phase 2** — Production: Dashboard, 2FA auth,
+  webhooks with retry, Redis, ARIA Membrane,
+  security hardening (86/86 audit)
+- [x] **Phase 3** — ARIA Gate: Human-in-the-loop enforcement,
+  risk classification, auto-blocking, email approval flow,
+  dashboard approval UI
+- [ ] **Phase 4** — ARIA Spectrum: Behavioral fingerprinting,
+  cross-agent correlation, anomaly pattern detection
+- [ ] **Phase 5** — ARIA Shadow Witness: Independent
+  verification of agent-reported actions against
+  external sources
+- [ ] **Phase 6** — ARIA Temporal Anchor: RFC 3161
+  cryptographic time proofs anchored to internationally
+  recognized time authorities
+- [ ] **Phase 7** — ARIA ZeroProof: Zero-knowledge behavioral
+  compliance proofs — prove correct behavior without
+  revealing any business data
 
 ---
 
@@ -380,7 +450,8 @@ ALLOWED_ORIGINS=https://your-domain.com
 
 ## Stack
 
-Node.js · TypeScript · Express · PostgreSQL · Redis · Railway
+Node.js · TypeScript · Express · PostgreSQL · Redis ·
+Cloudflare · Railway
 
 ---
 
