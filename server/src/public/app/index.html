@@ -1114,6 +1114,13 @@
     <div class="tabs">
       <button class="tab active" id="tab-btn-overview" onclick="showTab('overview', this)">Overview</button>
       <button class="tab" id="tab-btn-apikeys"  onclick="showTab('apikeys', this)">API Keys</button>
+      <button class="tab" id="tab-btn-gate" onclick="showTab('gate', this)">
+        Gate
+        <span id="gate-badge" class="hidden"
+          style="background:#c94c4c;color:#fff;
+                 border-radius:10px;padding:1px 6px;
+                 font-size:10px;margin-left:4px">0</span>
+      </button>
     </div>
 
     <!-- Brief login notice (auto-hides) -->
@@ -1185,6 +1192,14 @@
         <div class="warning-box">
           <p>Rotating your key immediately revokes the current one. Any SDK integrations using the old key will stop working until updated.</p>
         </div>
+      </div>
+    </div>
+
+    <!-- ── GATE TAB ── -->
+    <div id="tab-gate" class="hidden">
+      <div class="section-title" style="margin-bottom:20px">Pending Approvals</div>
+      <div id="gate-requests-list">
+        <div class="loading"><div class="spinner"></div></div>
       </div>
     </div>
   </div>
@@ -1463,9 +1478,150 @@
 
   async function loadDashboard() {
     if (currentTab === 'overview') {
-      await Promise.allSettled([loadStats(), loadAgents(), loadRecentEvents()]);
+      await Promise.allSettled([loadStats(), loadAgents(), loadRecentEvents(), checkGateBadge()]);
     } else if (currentTab === 'agent' && selectedAgentDid) {
       await loadAgentDetail(selectedAgentDid);
+    }
+  }
+
+  async function checkGateBadge() {
+    try {
+      const data = await apiCall('/v1/gate/pending');
+      const count = data.requests?.length || 0;
+      const badge = document.getElementById('gate-badge');
+      if (badge) {
+        if (count > 0) {
+          badge.textContent = count;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+    } catch {}
+  }
+
+  async function loadGateRequests() {
+    const el = document.getElementById('gate-requests-list');
+    if (!el) return;
+
+    try {
+      const data = await apiCall('/v1/gate/pending');
+      const requests = data.requests || [];
+
+      const badge = document.getElementById('gate-badge');
+      if (badge) {
+        if (requests.length > 0) {
+          badge.textContent = requests.length;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      if (!requests.length) {
+        el.innerHTML = `
+          <div class="empty-state">
+            <h3>No pending approvals</h3>
+            <p>When your agents attempt gated actions,
+               approval requests will appear here.</p>
+          </div>`;
+        return;
+      }
+
+      let html = '';
+      requests.forEach(req => {
+        const timeoutAt = new Date(req.timeout_at);
+        const now = new Date();
+        const secsLeft = Math.max(
+          0,
+          Math.floor((timeoutAt.getTime() - now.getTime()) / 1000)
+        );
+        const minsLeft = Math.floor(secsLeft / 60);
+        const sLeft = secsLeft % 60;
+        const timeStr = `${minsLeft}m ${sLeft}s`;
+
+        html += `
+          <div style="background:#07090f;
+                      border:1px solid rgba(255,255,255,0.06);
+                      border-left:3px solid #c9a84c;
+                      border-radius:8px;padding:20px;
+                      margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;
+                        align-items:flex-start;margin-bottom:12px">
+              <div>
+                <div style="font-size:13px;
+                            color:rgba(248,244,238,0.5);
+                            margin-bottom:4px">AGENT</div>
+                <div style="font-size:16px;font-weight:600;
+                            color:#f8f4ee">${escapeHtml(req.agent_name)}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:11px;
+                            color:rgba(248,244,238,0.4)">
+                  Expires in
+                </div>
+                <div style="font-size:14px;color:#ffbd2e;
+                            font-family:'JetBrains Mono',monospace"
+                     id="timer-${req.id}">${timeStr}</div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:16px">
+              <div style="font-size:13px;
+                          color:rgba(248,244,238,0.5);
+                          margin-bottom:4px">REQUESTED ACTION</div>
+              <div style="font-size:15px;color:#e8c87a;
+                          font-family:'JetBrains Mono',monospace;
+                          font-weight:600">
+                ${escapeHtml(req.action)}
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px">
+              <button
+                onclick="resolveGateRequest('${escapeHtml(req.id)}', 'approve')"
+                style="flex:1;padding:10px;background:#28c841;
+                       color:#04060d;border:none;border-radius:6px;
+                       font-weight:600;font-size:14px;cursor:pointer">
+                ✅ Approve
+              </button>
+              <button
+                onclick="resolveGateRequest('${escapeHtml(req.id)}', 'deny')"
+                style="flex:1;padding:10px;background:#c94c4c;
+                       color:#f8f4ee;border:none;border-radius:6px;
+                       font-weight:600;font-size:14px;cursor:pointer">
+                ❌ Deny
+              </button>
+            </div>
+          </div>`;
+      });
+
+      el.innerHTML = html;
+    } catch (err) {
+      el.innerHTML = `
+        <div class="empty-state">
+          <p style="color:var(--red)">
+            Failed to load gate requests
+          </p>
+        </div>`;
+    }
+  }
+
+  async function resolveGateRequest(id, action) {
+    try {
+      await apiCall(`/v1/gate/${action}/${id}`, {
+        method: 'POST',
+        body: '{}'
+      });
+      showDashboardNotice(
+        action === 'approve'
+          ? '✅ Action approved successfully'
+          : '❌ Action denied successfully',
+        action === 'approve' ? 'success' : 'error'
+      );
+      loadGateRequests();
+    } catch (err) {
+      showDashboardNotice('Failed: ' + err.message, 'error');
     }
   }
 
@@ -1581,12 +1737,14 @@
     document.getElementById('tab-overview').classList.toggle('hidden', tab !== 'overview');
     document.getElementById('tab-agent').classList.toggle('hidden', tab !== 'agent');
     document.getElementById('tab-apikeys').classList.toggle('hidden', tab !== 'apikeys');
+    document.getElementById('tab-gate').classList.toggle('hidden', tab !== 'gate');
 
     document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
     if (tab === 'overview') loadDashboard();
     else if (tab === 'apikeys') loadApiKeys();
+    else if (tab === 'gate') loadGateRequests();
   }
 
   // ── AGENT DETAIL ──────────────────────────────────────────────────────────

@@ -65,7 +65,61 @@ console.log(result.insights);
 // }
 ```
 
-### 5. View your agent in the dashboard
+### 5. ARIA Gate — Require human approval for critical actions
+
+```typescript
+import {
+  createClient,
+  GateDeniedException,
+  GateBlockedException
+} from '@ariatrust-io/aria-sdk';
+
+const aria = createClient({
+  baseUrl: 'https://ariatrust.org',
+  apiKey: 'your-api-key'
+});
+
+const agent = await aria.registerAgent({
+  name: 'database-manager',
+  scope: ['read:users', 'delete:users']
+});
+
+try {
+  const result = await aria.track(
+    agent.did,
+    agent.secret,
+    'delete:users',
+    async () => {
+      return await deleteInactiveUsers();
+    },
+    {
+      mode: 'gate',
+      gate: {
+        requireApproval: ['delete:*'],
+        autoBlock: ['drop:*', 'truncate:*'],
+        timeoutMs: 5 * 60 * 1000  // 5 minutes
+      }
+    }
+  );
+
+  console.log('Action approved and executed');
+} catch (err) {
+  if (err instanceof GateDeniedException) {
+    console.log('Owner denied this action');
+  } else if (err instanceof GateBlockedException) {
+    console.log('Action auto-blocked by policy');
+  }
+}
+```
+
+When an agent attempts a gated action:
+1. The action executes
+2. ARIA pauses and notifies the owner via email
+3. Owner sees the request in their dashboard
+4. Owner approves or denies within the timeout
+5. If denied or timeout → exception thrown
+
+### 6. View your agent in the dashboard
 
 Sign in at `https://ariatrust.org/app` and see:
 - Live trust score and trust level
