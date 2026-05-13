@@ -1,6 +1,6 @@
 {
   "name": "@ariatrust-io/aria-sdk",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Official SDK for ARIA - Trust Infrastructure for AI Agents",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
