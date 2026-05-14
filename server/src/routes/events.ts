@@ -568,6 +568,131 @@ eventsRouter.get("/", async (req, res) => {
   }
 });
 
+eventsRouter.get("/export", async (req, res) => {
+  try {
+    const {
+      agentDid,
+      format = 'csv',
+      type = 'all',
+      from,
+      to
+    } = req.query as Record<string, string>;
+
+    if (!agentDid) {
+      return res.status(400).json({
+        error: 'agentDid is required',
+        code: 'MISSING_AGENT_DID'
+      });
+    }
+
+    const userResult = await query<{ id: string }>(
+      'SELECT id FROM users WHERE email = $1',
+      [req.ownerEmail]
+    );
+    const userId = userResult.rows[0]?.id ?? null;
+
+    const params: unknown[] = [req.apiKeyId, userId, agentDid];
+    let sql = `
+      SELECT
+        e.event_id,
+        e.action,
+        e.outcome,
+        e.server_within_scope AS scope_valid,
+        e.signature_valid,
+        e.duration_ms,
+        e.client_ts AS timestamp,
+        e.error,
+        a.name AS agent_name,
+        a.did AS agent_did
+      FROM events e
+      JOIN agents a ON a.id = e.agent_id
+      WHERE (a.api_key_id = $1 OR a.user_id = $2)
+        AND a.did = $3
+    `;
+
+    if (type === 'success') {
+      sql += ` AND e.outcome = 'success' AND e.server_within_scope = true`;
+    } else if (type === 'errors') {
+      sql += ` AND e.outcome = 'error'`;
+    } else if (type === 'violations') {
+      sql += ` AND e.server_within_scope = false`;
+    } else if (type === 'anomalies') {
+      sql += ` AND e.outcome = 'anomaly'`;
+    }
+
+    let paramIdx = 4;
+    if (from) {
+      const fromDate = new Date(from);
+      if (!isNaN(fromDate.getTime())) {
+        sql += ` AND e.client_ts >= $${paramIdx++}`;
+        params.push(fromDate);
+      }
+    }
+    if (to) {
+      const toDate = new Date(to);
+      if (!isNaN(toDate.getTime())) {
+        sql += ` AND e.client_ts <= $${paramIdx++}`;
+        params.push(toDate);
+      }
+    }
+
+    sql += ` ORDER BY e.client_ts DESC LIMIT 50000`;
+
+    const result = await query(sql, params);
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="aria-events-${type}-${Date.now()}.json"`
+      );
+      return res.json({
+        agent_did: agentDid,
+        type,
+        exported_at: new Date().toISOString(),
+        total: result.rows.length,
+        events: result.rows
+      });
+    }
+
+    const headers = [
+      'event_id', 'action', 'outcome', 'scope_valid',
+      'signature_valid', 'duration_ms', 'timestamp',
+      'error', 'agent_name', 'agent_did'
+    ];
+
+    const csvRows = [
+      headers.join(','),
+      ...result.rows.map(row =>
+        headers.map(h => {
+          const val = (row as Record<string, unknown>)[h];
+          if (val === null || val === undefined) return '';
+          const str = String(val);
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        }).join(',')
+      )
+    ];
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="aria-events-${type}-${Date.now()}.csv"`
+    );
+    return res.send(csvRows.join('\n'));
+
+  } catch (err) {
+    console.error('[events] GET /export error:',
+      err instanceof Error ? err.message : 'Unknown');
+    return res.status(500).json({
+      error: 'Service unavailable',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
 // v1: classic HMAC-SHA256 with raw secret.
 function verifySignatureV1(event: IncomingEvent, hmacKey: string): boolean {
   const payload = `${event.eventId}:${event.agentDid}:${event.action}:${event.outcome}:${event.timestamp}`;

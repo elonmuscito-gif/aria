@@ -1797,6 +1797,14 @@
             <div class="detail-stat-label">Anomalies</div>
           </div>
         </div>
+        <div style="display:flex;gap:10px;margin-bottom:28px;flex-wrap:wrap">
+          <div style="font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(248,244,238,0.4);display:flex;align-items:center;margin-right:8px">EXPORT:</div>
+          <button onclick="exportEvents('${agent.did}','all')" style="padding:7px 14px;background:transparent;border:1px solid rgba(201,168,76,0.3);color:#e8c87a;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">All Events</button>
+          <button onclick="exportEvents('${agent.did}','success')" style="padding:7px 14px;background:transparent;border:1px solid rgba(40,200,65,0.3);color:#28c841;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Successes</button>
+          <button onclick="exportEvents('${agent.did}','errors')" style="padding:7px 14px;background:transparent;border:1px solid rgba(201,76,76,0.3);color:#c94c4c;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Errors</button>
+          <button onclick="exportEvents('${agent.did}','violations')" style="padding:7px 14px;background:transparent;border:1px solid rgba(201,168,76,0.3);color:#c9a84c;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Violations</button>
+          <button onclick="exportEvents('${agent.did}','anomalies')" style="padding:7px 14px;background:transparent;border:1px solid rgba(255,189,46,0.3);color:#ffbd2e;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Anomalies</button>
+        </div>
         <div class="section-title" style="margin-bottom:16px">Event History</div>
         <div class="card" id="detail-events"><div class="loading"><div class="spinner"></div></div></div>
       `;
@@ -1832,6 +1840,24 @@
       container.innerHTML = `<button class="btn-back" onclick="goBack()">← Back</button>
         <div class="alert alert-error">${escapeHtml(err.message)}</div>`;
     }
+  }
+
+  function exportEvents(did, type) {
+    const url = `${API_BASE}/v1/events/export?agentDid=${encodeURIComponent(did)}&type=${type}&format=csv`;
+    const a = document.createElement('a');
+    fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+      .then(res => res.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        a.href = blobUrl;
+        a.setAttribute('download', `aria-events-${type}-${Date.now()}.csv`);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        showDashboardNotice(`Exported ${type} events`, 'success');
+      })
+      .catch(() => showDashboardNotice('Export failed', 'error'));
   }
 
   function goBack() {
