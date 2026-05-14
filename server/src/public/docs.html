@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentation — ARIA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#04060d;
+  --navy:#06080f;
+  --gold:#c9a84c;
+  --gold-lt:#e8c87a;
+  --gold-dim:rgba(201,168,76,0.15);
+  --white:#f8f4ee;
+  --gray:rgba(248,244,238,0.45);
+  --surface:#07090f;
+  --border:rgba(255,255,255,0.06);
+  --border-gold:rgba(201,168,76,0.18);
+}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--black);color:var(--white);line-height:1.6;overflow-x:hidden}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 48px;background:rgba(4,6,13,0.6);backdrop-filter:blur(20px);border-bottom:1px solid rgba(201,168,76,0.1);z-index:1000;transition:background .3s,border-color .3s}
+nav.scrolled{background:rgba(4,6,13,0.96);border-bottom-color:rgba(201,168,76,0.2)}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nav-logo-text{font-weight:600;font-size:16px;letter-spacing:6px;color:var(--gold-lt)}
+.nav-links{display:flex;align-items:center;gap:32px;list-style:none}
+.nav-links a{font-size:14px;color:rgba(248,244,238,0.55);text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--white)}
+.nav-links a.active{color:var(--gold-lt)}
+.nav-actions{display:flex;align-items:center;gap:12px}
+.btn-sm-outline{padding:7px 18px;border:1px solid rgba(201,168,76,0.4);background:transparent;color:var(--gold-lt);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;border-radius:4px;cursor:pointer;text-decoration:none;transition:all .2s}
+.btn-sm-outline:hover{border-color:var(--gold);background:rgba(201,168,76,0.07)}
+.btn-sm-gold{padding:7px 18px;background:linear-gradient(135deg,#c9a84c,#e8c87a);color:#04060d;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;border:none;border-radius:4px;cursor:pointer;text-decoration:none;transition:opacity .2s,transform .15s}
+.btn-sm-gold:hover{opacity:.88;transform:translateY(-1px)}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px;background:none;border:none}
+.hamburger span{display:block;width:22px;height:2px;background:var(--gold-lt);transition:all .3s}
+.mobile-menu{display:none;position:fixed;top:64px;left:0;right:0;background:rgba(4,6,13,0.98);border-bottom:1px solid rgba(201,168,76,0.15);padding:24px 32px;flex-direction:column;gap:20px;z-index:999}
+.mobile-menu.open{display:flex}
+.mobile-menu a{color:rgba(248,244,238,0.75);text-decoration:none;font-size:16px}
+
+/* HERO */
+.docs-hero{padding:130px 24px 80px;text-align:center;background:radial-gradient(ellipse 100% 60% at 50% 0%,rgba(6,9,20,1) 0%,var(--black) 65%);position:relative;overflow:hidden}
+.docs-hero::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:600px;height:300px;background:radial-gradient(ellipse,rgba(201,168,76,0.05) 0%,transparent 70%);pointer-events:none}
+.docs-hero-label{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:rgba(201,168,76,0.07);border:1px solid rgba(201,168,76,0.22);border-radius:100px;font-size:12px;font-weight:500;color:var(--gold-lt);letter-spacing:.5px;margin-bottom:28px;opacity:0;animation:fadeUp .6s ease .1s forwards}
+.docs-hero h1{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,6vw,76px);font-weight:600;line-height:1.06;letter-spacing:-1px;color:var(--white);margin-bottom:20px;opacity:0;animation:fadeUp .7s ease .2s forwards}
+.docs-hero p{font-size:17px;font-weight:300;color:var(--gray);max-width:460px;margin:0 auto 44px;line-height:1.7;opacity:0;animation:fadeUp .7s ease .3s forwards}
+.quick-nav{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;opacity:0;animation:fadeUp .7s ease .45s forwards}
+.quick-nav a{padding:8px 18px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:4px;font-size:13px;color:rgba(248,244,238,0.5);text-decoration:none;font-family:'JetBrains Mono',monospace;transition:all .2s}
+.quick-nav a:hover{border-color:var(--border-gold);color:var(--gold-lt);background:rgba(201,168,76,0.05)}
+
+/* LAYOUT */
+.docs-layout{max-width:900px;margin:0 auto;padding:0 24px 120px}
+
+/* SECTION */
+.doc-section{padding:72px 0;border-top:1px solid var(--border)}
+.doc-section:first-child{border-top:none}
+.sec-label{font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+.sec-title{font-family:'Cormorant Garamond',serif;font-size:clamp(28px,4vw,46px);font-weight:600;color:var(--white);margin-bottom:36px;line-height:1.1}
+
+/* STEPS */
+.qs-steps{display:flex;flex-direction:column;gap:48px}
+.qs-step{display:grid;grid-template-columns:48px 1fr;gap:28px;align-items:start}
+.qs-num{width:48px;height:48px;border:1px solid rgba(201,168,76,0.35);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:var(--gold);flex-shrink:0;background:rgba(201,168,76,0.04)}
+.qs-content h3{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--white);margin-bottom:10px}
+.qs-content p{font-size:14px;color:var(--gray);margin-bottom:16px;line-height:1.7}
+
+/* CODE BLOCKS */
+.code-wrap{background:#030508;border:1px solid rgba(255,255,255,0.07);border-radius:6px;overflow:hidden}
+.code-header{background:#080b14;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06)}
+.code-lang{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(248,244,238,0.25);letter-spacing:.5px;text-transform:uppercase}
+.copy-btn{font-family:'DM Sans',sans-serif;font-size:11px;color:rgba(248,244,238,0.25);background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:3px;transition:color .2s}
+.copy-btn:hover{color:var(--gold-lt)}
+pre{padding:20px 22px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.75;color:rgba(248,244,238,0.72);overflow-x:auto;white-space:pre}
+.k{color:#c792ea}
+.s{color:#c3e88d}
+.fn{color:#82aaff}
+.cm{color:rgba(248,244,238,0.25);font-style:italic}
+.p{color:var(--gold-lt)}
+.num{color:#f78c6c}
+.kw{color:#89ddff}
+
+/* INLINE CODE */
+code{font-family:'JetBrains Mono',monospace;font-size:12.5px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:1px 6px;color:var(--gold-lt)}
+
+/* INSIGHTS BADGE */
+.insights-block{background:rgba(201,168,76,0.04);border:1px solid rgba(201,168,76,0.16);border-radius:6px;padding:18px 22px;margin-top:16px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.9;color:rgba(248,244,238,0.65)}
+.insights-block .ik{color:var(--gold-lt)}
+.insights-block .iv{color:#c3e88d}
+.insights-block .ip{color:rgba(248,244,238,0.3)}
+
+/* MODES */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:32px}
+.mode-card{background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--gold);border-radius:6px;padding:24px 20px}
+.mode-card h4{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:600;color:var(--white);margin-bottom:6px}
+.mode-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
+.badge-default{background:rgba(201,168,76,0.12);color:var(--gold-lt)}
+.badge-warn{background:rgba(248,180,0,0.1);color:#f0c000}
+.badge-critical{background:rgba(201,76,76,0.12);color:#c94c4c}
+.mode-card p{font-size:13px;color:var(--gray);line-height:1.65}
+
+/* SCOPE TABLE */
+.scope-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.scope-row{display:grid;grid-template-columns:160px 1fr;gap:16px;align-items:center;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:4px}
+.scope-action{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--gold-lt)}
+.scope-desc{font-size:13px;color:var(--gray)}
+
+/* TRUST SCORE */
+.ts-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
+.ts-block{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:24px 20px}
+.ts-block h4{font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(248,244,238,0.35);margin-bottom:14px}
+.ts-change{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.ts-change:last-child{border-bottom:none}
+.ts-event{font-size:13.5px;color:rgba(248,244,238,0.65)}
+.ts-delta{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500}
+.ts-pos{color:#5cc87e}
+.ts-neg{color:#c94c4c}
+.ts-neg-hi{color:#ff4040}
+.levels-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.level{padding:14px 16px;border-radius:5px;text-align:center}
+.level-trusted{background:rgba(92,200,126,0.08);border:1px solid rgba(92,200,126,0.22)}
+.level-neutral{background:rgba(201,168,76,0.07);border:1px solid rgba(201,168,76,0.2)}
+.level-untrusted{background:rgba(201,76,76,0.08);border:1px solid rgba(201,76,76,0.22)}
+.level-name{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.level-trusted .level-name{color:#5cc87e}
+.level-neutral .level-name{color:var(--gold)}
+.level-untrusted .level-name{color:#c94c4c}
+.level-range{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--white)}
+.level-note{font-size:11px;color:var(--gray);margin-top:3px}
+
+/* API TABLE */
+.api-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.api-table thead th{text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(248,244,238,0.28);border-bottom:1px solid var(--border)}
+.api-table tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background .15s}
+.api-table tbody tr:hover{background:rgba(255,255,255,0.02)}
+.api-table tbody tr:last-child{border-bottom:none}
+.api-table td{padding:12px 16px;vertical-align:middle}
+.method{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;padding:3px 8px;border-radius:3px;display:inline-block;min-width:46px;text-align:center}
+.m-get{background:rgba(82,170,255,0.1);color:#52aaff;border:1px solid rgba(82,170,255,0.2)}
+.m-post{background:rgba(92,200,126,0.1);color:#5cc87e;border:1px solid rgba(92,200,126,0.2)}
+.m-del{background:rgba(201,76,76,0.1);color:#c94c4c;border:1px solid rgba(201,76,76,0.2)}
+.ep-path{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:rgba(248,244,238,0.65)}
+.ep-desc{color:var(--gray)}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+
+/* EXAMPLES */
+.ex-tabs{display:flex;gap:4px;margin-bottom:20px}
+.ex-tab{padding:7px 16px;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;background:none;border:1px solid var(--border);color:var(--gray);transition:all .2s;font-family:'DM Sans',sans-serif}
+.ex-tab.active{background:rgba(201,168,76,0.1);border-color:var(--border-gold);color:var(--gold-lt)}
+.ex-panel{display:none}
+.ex-panel.active{display:block}
+
+/* CALLOUT */
+.callout{display:flex;gap:14px;padding:16px 20px;background:rgba(201,168,76,0.05);border:1px solid rgba(201,168,76,0.18);border-radius:5px;margin-bottom:20px}
+.callout-icon{flex-shrink:0;margin-top:1px}
+.callout p{font-size:13.5px;color:rgba(248,244,238,0.6);line-height:1.65}
+.callout strong{color:var(--gold-lt)}
+
+/* WEBHOOK PAYLOAD */
+.wh-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+
+/* FOOTER */
+footer{padding:44px 48px 40px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;background:#030408;flex-wrap:wrap;gap:24px}
+.footer-brand{display:flex;align-items:center;gap:12px}
+.footer-brand-name{font-weight:600;font-size:14px;letter-spacing:5px;color:var(--gold-lt)}
+.footer-tagline{font-size:11.5px;color:rgba(248,244,238,0.22);margin-top:2px;letter-spacing:.4px}
+.footer-links{display:flex;gap:24px;flex-wrap:wrap}
+.footer-links a{font-size:13px;color:rgba(248,244,238,0.3);text-decoration:none;transition:color .2s}
+.footer-links a:hover{color:rgba(248,244,238,0.65)}
+.footer-copy{font-size:12px;color:rgba(248,244,238,0.18)}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  nav{padding:0 24px}
+  .nav-links,.nav-actions{display:none}
+  .hamburger{display:flex}
+  .mode-grid{grid-template-columns:1fr}
+  .ts-grid{grid-template-columns:1fr}
+  .levels-row{grid-template-columns:1fr}
+  .wh-cols{grid-template-columns:1fr}
+  .qs-step{grid-template-columns:44px 1fr;gap:16px}
+  footer{flex-direction:column;align-items:flex-start;padding:36px 24px}
+}
+@media(max-width:480px){
+  .quick-nav{gap:8px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="/" class="nav-logo">
+    <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+      <polygon points="14,2 26,24 2,24" fill="none" stroke="#c9a84c" stroke-width="1.5"/>
+      <polygon points="14,8 21,22 7,22" fill="rgba(201,168,76,0.12)"/>
+      <line x1="14" y1="2" x2="14" y2="24" stroke="rgba(201,168,76,0.2)" stroke-width="0.75"/>
+    </svg>
+    <span class="nav-logo-text">ARIA</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="/#how">How it works</a></li>
+    <li><a href="/#what">Security</a></li>
+    <li><a href="/docs" class="active">Docs</a></li>
+    <li><a href="/#cta">Pricing</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a href="/app" class="btn-sm-outline">Sign In</a>
+    <a href="/app" class="btn-sm-gold">Get Started</a>
+  </div>
+  <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="mobile-menu" id="mobile-menu">
+  <a href="/#how">How it works</a>
+  <a href="/#what">Security</a>
+  <a href="/docs">Docs</a>
+  <a href="/#cta">Pricing</a>
+  <a href="/app" style="color:var(--gold-lt)">Sign In / Get Started</a>
+</div>
+
+<!-- HERO -->
+<section class="docs-hero">
+  <div class="docs-hero-label">Documentation</div>
+  <h1>Everything you need<br>to integrate ARIA.</h1>
+  <p>Full quickstart, SDK reference, and API docs — get up and running in under 5 minutes.</p>
+  <div class="quick-nav">
+    <a href="#quickstart">Quickstart</a>
+    <a href="#track-modes">Track Modes</a>
+    <a href="#scope">Scope</a>
+    <a href="#trust-score">Trust Score</a>
+    <a href="#webhooks">Webhooks</a>
+    <a href="#api-reference">API Reference</a>
+    <a href="#examples">Examples</a>
+  </div>
+</section>
+
+<!-- CONTENT -->
+<div class="docs-layout">
+
+  <!-- QUICKSTART -->
+  <section id="quickstart" class="doc-section">
+    <div class="sec-label">Getting Started</div>
+    <h2 class="sec-title">Quickstart</h2>
+    <div class="qs-steps">
+
+      <div class="qs-step">
+        <div class="qs-num">1</div>
+        <div class="qs-content">
+          <h3>Create your account</h3>
+          <p>Go to <a href="/app" style="color:var(--gold-lt);text-decoration:none">ariatrust.org/app</a>, register and confirm your email. Copy your API key from the dashboard.</p>
+        </div>
+      </div>
+
+      <div class="qs-step">
+        <div class="qs-num">2</div>
+        <div class="qs-content">
+          <h3>Install the SDK</h3>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-lang">bash</span>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre>npm install @ariatrust-io/aria-sdk</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="qs-step">
+        <div class="qs-num">3</div>
+        <div class="qs-content">
+          <h3>Register your agent</h3>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-lang">typescript</span>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><span class="k">import</span> { createClient } <span class="k">from</span> <span class="s">'@ariatrust-io/aria-sdk'</span>;
+
+<span class="k">const</span> aria = <span class="fn">createClient</span>({
+  baseUrl: <span class="s">'https://ariatrust.org'</span>,
+  apiKey: process.env.<span class="p">ARIA_API_KEY</span>
+});
+
+<span class="k">const</span> agent = <span class="k">await</span> aria.<span class="fn">registerAgent</span>({
+  name: <span class="s">'my-agent'</span>,
+  scope: [<span class="s">'read:data'</span>, <span class="s">'write:data'</span>, <span class="s">'send:email'</span>]
+});
+
+<span class="cm">// Save these — you need them to track events</span>
+console.<span class="fn">log</span>(agent.did);    <span class="cm">// did:agentrust:...</span>
+console.<span class="fn">log</span>(agent.secret); <span class="cm">// keep this secret</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="qs-step">
+        <div class="qs-num">4</div>
+        <div class="qs-content">
+          <h3>Track actions</h3>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-lang">typescript</span>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><span class="k">const</span> result = <span class="k">await</span> aria.<span class="fn">track</span>(
+  agent.did,
+  agent.secret,
+  <span class="s">'read:data'</span>,
+  <span class="k">async</span> () => {
+    <span class="k">return await</span> <span class="fn">fetchUserData</span>(userId);
+  }
+);</pre>
+          </div>
+          <div class="insights-block">
+            <div>result.insights</div>
+            <div>{</div>
+            <div>&nbsp;&nbsp;<span class="ik">scope</span><span class="ip">:     </span>{ <span class="ik">valid</span>: <span class="iv">true</span> },</div>
+            <div>&nbsp;&nbsp;<span class="ik">signature</span><span class="ip">: </span>{ <span class="ik">valid</span>: <span class="iv">true</span> },</div>
+            <div>&nbsp;&nbsp;<span class="ik">rateLimit</span><span class="ip">: </span>{ <span class="ik">exceeded</span>: <span class="iv">false</span> },</div>
+            <div>&nbsp;&nbsp;<span class="ik">trustScore</span><span class="ip">:</span>{ <span class="ik">impact</span>: <span class="iv">+1</span> }</div>
+            <div>}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="qs-step">
+        <div class="qs-num">5</div>
+        <div class="qs-content">
+          <h3>View in dashboard</h3>
+          <p>Sign in at <a href="/app" style="color:var(--gold-lt);text-decoration:none">ariatrust.org/app</a> to see your agent, its trust score, and every action it has taken — with full cryptographic proof.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- TRACK MODES -->
+  <section id="track-modes" class="doc-section">
+    <div class="sec-label">SDK Reference</div>
+    <h2 class="sec-title">Track Modes</h2>
+    <p style="color:var(--gray);font-size:15px;margin-bottom:32px;line-height:1.7">ARIA supports three modes for tracking agent actions. Choose the mode that matches the risk and latency requirements of each action.</p>
+
+    <div class="mode-grid">
+      <div class="mode-card">
+        <div class="mode-badge badge-default">Default</div>
+        <h4>enforce</h4>
+        <p>Blocks until ARIA confirms the event. Use for critical actions where you need insights back.</p>
+      </div>
+      <div class="mode-card">
+        <div class="mode-badge badge-warn">Low latency</div>
+        <h4>light</h4>
+        <p>Fire-and-forget. Agent continues immediately. Use for high-frequency actions where latency matters.</p>
+      </div>
+      <div class="mode-card">
+        <div class="mode-badge badge-critical">Human-in-loop</div>
+        <h4>gate</h4>
+        <p>Requires human approval before executing. Use for destructive or high-risk actions.</p>
+      </div>
+    </div>
+
+    <div class="code-wrap" style="margin-bottom:20px">
+      <div class="code-header">
+        <span class="code-lang">typescript — enforce (default)</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="k">const</span> result = <span class="k">await</span> aria.<span class="fn">track</span>(did, secret, <span class="s">'read:data'</span>, fn);
+<span class="cm">// Waits ~150-300ms for ARIA response</span></pre>
+    </div>
+
+    <div class="code-wrap" style="margin-bottom:20px">
+      <div class="code-header">
+        <span class="code-lang">typescript — light</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="k">const</span> result = <span class="k">await</span> aria.<span class="fn">track</span>(
+  did, secret, <span class="s">'read:data'</span>, fn,
+  { mode: <span class="s">'light'</span> }
+);
+<span class="cm">// Returns immediately — ARIA records in background</span></pre>
+    </div>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-lang">typescript — gate</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="k">import</span> { GateDeniedException } <span class="k">from</span> <span class="s">'@ariatrust-io/aria-sdk'</span>;
+
+<span class="k">try</span> {
+  <span class="k">await</span> aria.<span class="fn">track</span>(
+    did, secret, <span class="s">'delete:records'</span>, fn,
+    {
+      mode: <span class="s">'gate'</span>,
+      gate: {
+        requireApproval: [<span class="s">'delete:*'</span>],
+        autoBlock: [<span class="s">'drop:*'</span>],
+        timeoutMs: <span class="num">5</span> * <span class="num">60</span> * <span class="num">1000</span>
+      }
+    }
+  );
+} <span class="k">catch</span> (err) {
+  <span class="k">if</span> (err <span class="kw">instanceof</span> GateDeniedException) {
+    console.<span class="fn">log</span>(<span class="s">'Owner denied this action'</span>);
+  }
+}</pre>
+    </div>
+  </section>
+
+  <!-- SCOPE -->
+  <section id="scope" class="doc-section">
+    <div class="sec-label">SDK Reference</div>
+    <h2 class="sec-title">Scope</h2>
+    <p style="color:var(--gray);font-size:15px;margin-bottom:28px;line-height:1.7">Scope declares what your agent is allowed to do. Format: <code>verb:resource</code>. If an agent attempts an action outside its declared scope, ARIA records a scope violation and penalizes the trust score.</p>
+
+    <div class="scope-list">
+      <div class="scope-row">
+        <span class="scope-action">read:users</span>
+        <span class="scope-desc">Read user data</span>
+      </div>
+      <div class="scope-row">
+        <span class="scope-action">write:orders</span>
+        <span class="scope-desc">Create or update orders</span>
+      </div>
+      <div class="scope-row">
+        <span class="scope-action">send:email</span>
+        <span class="scope-desc">Send emails on behalf of users</span>
+      </div>
+      <div class="scope-row">
+        <span class="scope-action">process:payment</span>
+        <span class="scope-desc">Process payment transactions</span>
+      </div>
+      <div class="scope-row">
+        <span class="scope-action">generate:report</span>
+        <span class="scope-desc">Generate and export reports</span>
+      </div>
+    </div>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-lang">typescript</span>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><span class="k">const</span> agent = <span class="k">await</span> aria.<span class="fn">registerAgent</span>({
+  name: <span class="s">'my-agent'</span>,
+  scope: [
+    <span class="s">'read:users'</span>,      <span class="cm">// read user data</span>
+    <span class="s">'write:orders'</span>,    <span class="cm">// create/update orders</span>
+    <span class="s">'send:email'</span>,      <span class="cm">// send emails</span>
+    <span class="s">'process:payment'</span>, <span class="cm">// process payments</span>
+    <span class="s">'generate:report'</span>  <span class="cm">// generate reports</span>
+  ]
+});</pre>
+    </div>
+  </section>
+
+  <!-- TRUST SCORE -->
+  <section id="trust-score" class="doc-section">
+    <div class="sec-label">Reputation</div>
+    <h2 class="sec-title">Trust Score</h2>
+    <p style="color:var(--gray);font-size:15px;margin-bottom:32px;line-height:1.7">Every agent has a score from 0 to 100 based on behavior over the last 30 days. The score decays toward 50 after 7 days of inactivity.</p>
+
+    <div class="ts-grid">
+      <div class="ts-block">
+        <h4>Score Changes</h4>
+        <div class="ts-change">
+          <span class="ts-event">Successful action</span>
+          <span class="ts-delta ts-pos">+1</span>
+        </div>
+        <div class="ts-change">
+          <span class="ts-event">Error outcome</span>
+          <span class="ts-delta ts-neg">-1</span>
+        </div>
+        <div class="ts-change">
+          <span class="ts-event">Anomaly detected</span>
+          <span class="ts-delta ts-neg">-5</span>
+        </div>
+        <div class="ts-change">
+          <span class="ts-event">Scope violation</span>
+          <span class="ts-delta ts-neg">-15 to -50</span>
+        </div>
+        <div class="ts-change">
+          <span class="ts-event">Hardware conflict</span>
+          <span class="ts-delta ts-neg-hi">-20 to -40</span>
+        </div>
+      </div>
+      <div class="ts-block">
+        <h4>Notes</h4>
+        <div class="ts-change">
+          <span class="ts-event">Maximum achievable</span>
+          <span class="ts-delta" style="color:var(--gold-lt)">~85</span>
+        </div>
+        <div class="ts-change">
+          <span class="ts-event">Score never reaches 100</span>
+          <span class="ts-delta" style="color:var(--gray)">by design</span>
+        </div>
+        <div class="ts-change">
+          <span class="ts-event">Inactivity decay</span>
+          <span class="ts-delta" style="color:var(--gray)">toward 50</span>
+        </div>
+        <div class="ts-change">
+          <span class="ts-event">Decay starts after</span>
+          <span class="ts-delta" style="color:var(--gray)">7 days</span>
+        </div>
+        <div class="ts-change">
+          <span class="ts-event">Scope violations</span>
+          <span class="ts-delta ts-neg">escalating</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="levels-row">
+      <div class="level level-trusted">
+        <div class="level-name">Trusted</div>
+        <div class="level-range">80 – 100</div>
+        <div class="level-note">Fully verified behavior</div>
+      </div>
+      <div class="level level-neutral">
+        <div class="level-name">Neutral</div>
+        <div class="level-range">50 – 79</div>
+        <div class="level-note">Monitor for anomalies</div>
+      </div>
+      <div class="level level-untrusted">
+        <div class="level-name">Untrusted</div>
+        <div class="level-range">0 – 49</div>
+        <div class="level-note">Investigate immediately</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WEBHOOKS -->
+  <section id="webhooks" class="doc-section">
+    <div class="sec-label">Alerts</div>
+    <h2 class="sec-title">Webhooks</h2>
+    <p style="color:var(--gray);font-size:15px;margin-bottom:28px;line-height:1.7">Get notified in real time when something suspicious happens. Each webhook is signed with HMAC-SHA256 via the <code>X-ARIA-Signature</code> header so you can verify authenticity.</p>
+
+    <div class="wh-cols">
+      <div>
+        <div class="code-wrap" style="margin-bottom:16px">
+          <div class="code-header">
+            <span class="code-lang">bash — register webhook</span>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+          </div>
+          <pre>curl -X POST https://ariatrust.org/v1/webhooks \
+  -H <span class="s">"Authorization: Bearer your-api-key"</span> \
+  -H <span class="s">"Content-Type: application/json"</span> \
+  -d <span class="s">'{
+    "url": "https://your-server.com/aria-alerts",
+    "events": [
+      "anomaly",
+      "scope_violation",
+      "trust_score_critical"
+    ]
+  }'</span></pre>
+        </div>
+      </div>
+      <div>
+        <div class="code-wrap">
+          <div class="code-header">
+            <span class="code-lang">json — webhook payload</span>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+          </div>
+          <pre>{
+  <span class="ik">"alert"</span>: <span class="s">"TRUST_SCORE_CRITICAL"</span>,
+  <span class="ik">"severity"</span>: <span class="s">"CRITICAL"</span>,
+  <span class="ik">"agent"</span>: {
+    <span class="ik">"did"</span>: <span class="s">"did:agentrust:..."</span>,
+    <span class="ik">"name"</span>: <span class="s">"my-agent"</span>,
+    <span class="ik">"trustScore"</span>: <span class="num">12</span>
+  },
+  <span class="ik">"reason"</span>: <span class="s">"scope_violation"</span>,
+  <span class="ik">"timestamp"</span>: <span class="s">"2026-05-14T10:00:00Z"</span>
+}</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- API REFERENCE -->
+  <section id="api-reference" class="doc-section">
+    <div class="sec-label">API</div>
+    <h2 class="sec-title">API Reference</h2>
+    <div class="callout">
+      <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#c9a84c" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="12" stroke="#c9a84c" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#c9a84c"/></svg>
+      <p><strong>Base URL:</strong> https://ariatrust.org &nbsp;·&nbsp; <strong>Authentication:</strong> <code>Authorization: Bearer &lt;api-key&gt;</code></p>
+    </div>
+    <div class="table-wrap">
+      <table class="api-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/health</td><td class="ep-desc">Server status</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/auth/register</td><td class="ep-desc">Create account</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/auth/login</td><td class="ep-desc">Sign in (sends 2FA code)</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/auth/verify-code</td><td class="ep-desc">Verify 2FA, receive API key</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/agents</td><td class="ep-desc">Register agent</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/agents</td><td class="ep-desc">List agents</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/agents/:did</td><td class="ep-desc">Agent details + trust score</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/agents/:did/secret</td><td class="ep-desc">Recover agent secret</td></tr>
+          <tr><td><span class="method m-del">DELETE</span></td><td class="ep-path">/v1/agents/:did</td><td class="ep-desc">Delete agent</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/agents/bulk-delete</td><td class="ep-desc">Delete multiple agents</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/events</td><td class="ep-desc">Track single event</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/events/batch</td><td class="ep-desc">Track up to 500 events</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/events</td><td class="ep-desc">List events</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/events/export</td><td class="ep-desc">Export events as CSV or JSON</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/gate/request</td><td class="ep-desc">Request human approval</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/gate/request/:id</td><td class="ep-desc">Check approval status</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/gate/approve/:id</td><td class="ep-desc">Approve action</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/gate/deny/:id</td><td class="ep-desc">Deny action</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/gate/pending</td><td class="ep-desc">List pending approvals</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/webhooks</td><td class="ep-desc">Register webhook</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/webhooks</td><td class="ep-desc">List webhooks</td></tr>
+          <tr><td><span class="method m-del">DELETE</span></td><td class="ep-path">/v1/webhooks/:id</td><td class="ep-desc">Remove webhook</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/api-keys</td><td class="ep-desc">Create API key</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/api-keys/rotate</td><td class="ep-desc">Rotate API key</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- EXAMPLES -->
+  <section id="examples" class="doc-section">
+    <div class="sec-label">Integrations</div>
+    <h2 class="sec-title">Examples</h2>
+
+    <div class="ex-tabs">
+      <button class="ex-tab active" onclick="switchTab(this,'openai')">OpenAI</button>
+      <button class="ex-tab" onclick="switchTab(this,'langchain')">LangChain</button>
+    </div>
+
+    <div id="tab-openai" class="ex-panel active">
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-lang">typescript — openai function calling</span>
+          <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        </div>
+        <pre><span class="k">import</span> OpenAI <span class="k">from</span> <span class="s">'openai'</span>;
+<span class="k">import</span> { createClient } <span class="k">from</span> <span class="s">'@ariatrust-io/aria-sdk'</span>;
+
+<span class="k">const</span> openai = <span class="k">new</span> <span class="fn">OpenAI</span>();
+<span class="k">const</span> aria = <span class="fn">createClient</span>({ baseUrl: <span class="s">'...'</span>, apiKey: <span class="s">'...'</span> });
+
+<span class="k">const</span> agent = <span class="k">await</span> aria.<span class="fn">registerAgent</span>({
+  name: <span class="s">'openai-agent'</span>,
+  scope: [<span class="s">'read:data'</span>, <span class="s">'send:email'</span>, <span class="s">'write:calendar'</span>]
+});
+
+<span class="cm">// Wrap each tool call with ARIA</span>
+<span class="k">async function</span> <span class="fn">callTool</span>(toolName: <span class="p">string</span>, args: <span class="p">unknown</span>) {
+  <span class="k">return</span> aria.<span class="fn">track</span>(
+    agent.did, agent.secret, toolName,
+    <span class="k">async</span> () => <span class="fn">executeTool</span>(toolName, args),
+    { mode: <span class="s">'light'</span> } <span class="cm">// non-blocking for high frequency</span>
+  );
+}</pre>
+      </div>
+    </div>
+
+    <div id="tab-langchain" class="ex-panel">
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-lang">typescript — langchain tools</span>
+          <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        </div>
+        <pre><span class="k">import</span> { DynamicTool } <span class="k">from</span> <span class="s">'langchain/tools'</span>;
+<span class="k">import</span> { createClient } <span class="k">from</span> <span class="s">'@ariatrust-io/aria-sdk'</span>;
+
+<span class="k">const</span> aria = <span class="fn">createClient</span>({ baseUrl: <span class="s">'...'</span>, apiKey: <span class="s">'...'</span> });
+<span class="k">const</span> agent = <span class="k">await</span> aria.<span class="fn">registerAgent</span>({
+  name: <span class="s">'langchain-agent'</span>,
+  scope: [<span class="s">'search:web'</span>, <span class="s">'read:database'</span>, <span class="s">'send:email'</span>]
+});
+
+<span class="cm">// Wrap LangChain tools with ARIA tracking</span>
+<span class="k">function</span> <span class="fn">wrapTool</span>(tool: <span class="p">DynamicTool</span>, action: <span class="p">string</span>) {
+  <span class="k">return new</span> <span class="fn">DynamicTool</span>({
+    name: tool.name,
+    description: tool.description,
+    func: <span class="k">async</span> (input: <span class="p">string</span>) => {
+      <span class="k">const</span> result = <span class="k">await</span> aria.<span class="fn">track</span>(
+        agent.did, agent.secret, action,
+        <span class="k">async</span> () => tool.<span class="fn">func</span>(input),
+        { mode: <span class="s">'light'</span> }
+      );
+      <span class="k">return</span> result;
+    }
+  });
+}</pre>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">
+    <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+      <polygon points="14,2 26,24 2,24" fill="none" stroke="#c9a84c" stroke-width="1.5"/>
+      <polygon points="14,8 21,22 7,22" fill="rgba(201,168,76,0.14)"/>
+    </svg>
+    <div>
+      <div class="footer-brand-name">ARIA</div>
+      <div class="footer-tagline">Verified by Design · Trusted by Architecture</div>
+    </div>
+  </div>
+  <div class="footer-links">
+    <a href="/app">Dashboard</a>
+    <a href="/docs">Docs</a>
+    <a href="https://github.com/ariatrust-io/aria" target="_blank" rel="noopener">GitHub</a>
+    <a href="/privacy">Privacy Policy</a>
+    <a href="https://www.npmjs.com/package/@ariatrust-io/aria-sdk" target="_blank" rel="noopener">npm</a>
+  </div>
+  <div class="footer-copy">© 2026 ARIA · BUSL-1.1</div>
+</footer>
+
+<script>
+// Navbar scroll
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 40);
+}, { passive: true });
+
+// Mobile menu
+const hamburger = document.getElementById('hamburger');
+const mobileMenu = document.getElementById('mobile-menu');
+hamburger.addEventListener('click', () => mobileMenu.classList.toggle('open'));
+mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mobileMenu.classList.remove('open')));
+
+// Tab switching
+function switchTab(btn, id) {
+  document.querySelectorAll('.ex-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ex-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+}
+
+// Copy code
+function copyCode(btn) {
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'copied';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>
