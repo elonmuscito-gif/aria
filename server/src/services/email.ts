@@ -86,13 +86,13 @@ export async function sendGateRequestEmail(
   await getResend().emails.send({
     from: 'ARIA Gate <noreply@ariatrust.org>',
     to: ownerEmail,
-    subject: `⚠️ ARIA Gate: Action requires your approval`,
+    subject: `ARIA Gate: Action requires your approval`,
     html: `
       <div style="font-family:system-ui;max-width:600px;
                   margin:0 auto;padding:32px;
                   background:#04060d;color:#f8f4ee">
         <h1 style="color:#c9a84c;font-size:24px;
-                   margin-bottom:8px">⚠️ ARIA Gate</h1>
+                   margin-bottom:8px">ARIA Gate</h1>
         <p style="color:rgba(248,244,238,0.6);
                   margin-bottom:32px">
           Action approval required
@@ -130,7 +130,7 @@ export async function sendGateRequestEmail(
                     color:#04060d;text-decoration:none;
                     border-radius:6px;font-weight:600;
                     font-size:15px">
-            ✅ Approve
+            Approve
           </a>
           <a href="${denyUrl}"
              style="flex:1;display:block;text-align:center;
@@ -138,7 +138,7 @@ export async function sendGateRequestEmail(
                     color:#f8f4ee;text-decoration:none;
                     border-radius:6px;font-weight:600;
                     font-size:15px">
-            ❌ Deny
+            Deny
           </a>
         </div>
 

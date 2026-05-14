@@ -48,7 +48,7 @@ async function ensureAgent() {
   if (EXISTING_DID && EXISTING_SECRET) {
     AGENT_DID = EXISTING_DID;
     AGENT_SECRET = EXISTING_SECRET;
-    console.log(`♻️  Using existing agent: ${AGENT_DID}`);
+    console.log(`[REUSE] Using existing agent: ${AGENT_DID}`);
     return;
   }
 
@@ -74,13 +74,13 @@ async function ensureAgent() {
         const secretData = await secretRes.json();
         AGENT_DID = secretData.did;
         AGENT_SECRET = secretData.secret;
-        console.log(`♻️  Recovered existing agent: ${AGENT_DID}`);
+        console.log(`[REUSE] Recovered existing agent: ${AGENT_DID}`);
         return;
       }
     }
 
     // No existing agent found — register new
-    console.log('🔧 Registering new agent...');
+    console.log('[ARIA] Registering new agent...');
     const res = await fetch(`${ARIA_URL}/v1/agents`, {
       method: 'POST',
       headers: {
@@ -106,7 +106,7 @@ async function ensureAgent() {
 
     AGENT_DID = data.agent.did;
     AGENT_SECRET = data.secret;
-    console.log(`✅ Agent registered: ${AGENT_DID}`);
+    console.log(`[OK] Agent registered: ${AGENT_DID}`);
   } catch (err) {
     throw new Error(`ensureAgent failed: ${err.message}`);
   }
@@ -206,7 +206,7 @@ const stats = { total: 0, successes: 0, errors: 0, violations: 0, suspicious: 0 
 function printStats() {
   const now = new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' });
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`📊 ARIA SIMULATOR — ${now}`);
+  console.log(`[STATS] ARIA SIMULATOR — ${now}`);
   console.log(`Events sent: ${stats.total}`);
   console.log(`Violations:  ${stats.violations}`);
   console.log(`Errors:      ${stats.errors}`);
@@ -221,9 +221,9 @@ async function checkTrustScore(did) {
     const data = await ariaGet(`/v1/agents/${encodeURIComponent(did)}`);
     const score = data?.agent?.trustScore ?? '?';
     const level = data?.agent?.trustLevel ?? '?';
-    console.log(`🏅 Trust score: ${score} | Level: ${level}`);
+    console.log(`[TRUST] Trust score: ${score} | Level: ${level}`);
   } catch (err) {
-    console.error('⚠️  Trust score check failed:', err.message);
+    console.error('[WARN] Trust score check failed:', err.message);
   }
 }
 
@@ -241,15 +241,15 @@ async function runLoop(did, secret) {
 
       const scopeOk    = data.insights?.scope?.valid;
       const trustDelta = data.insights?.trustScore?.impact;
-      const icon = event.type === 'valid'     ? '✅' :
-                   event.type === 'error'     ? '⚠️' :
-                   event.type === 'violation' ? '🚨' : '🔴';
+      const icon = event.type === 'valid'     ? '[OK]'        :
+                   event.type === 'error'     ? '[WARN]'      :
+                   event.type === 'violation' ? '[VIOLATION]' : '[SUSPICIOUS]';
 
       const deltaStr = trustDelta != null ? ` | trust: ${trustDelta > 0 ? '+' : ''}${trustDelta}` : '';
       console.log(`${icon} ${event.body.action} → ${scopeOk ? 'OK' : 'VIOLATION'}${deltaStr}`);
 
     } catch (err) {
-      console.error('❌ Event failed:', err.message);
+      console.error('[ERROR] Event failed:', err.message);
     }
 
     const wait = 15000 + Math.random() * 30000;
@@ -259,8 +259,8 @@ async function runLoop(did, secret) {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 async function main() {
-  console.log('🚀 ARIA Simulator');
-  console.log(`🌐 ${ARIA_URL}`);
+  console.log('[ARIA] ARIA Simulator');
+  console.log(`[ARIA] ${ARIA_URL}`);
 
   await ensureAgent();
 
@@ -271,11 +271,11 @@ async function main() {
   setInterval(() => checkTrustScore(AGENT_DID), 10 * 60 * 1000);
   await checkTrustScore(AGENT_DID);
 
-  console.log('▶️  Starting event loop (15-45s between events)...\n');
+  console.log('[START] Starting event loop (15-45s between events)...\n');
   await runLoop(AGENT_DID, AGENT_SECRET);
 }
 
 main().catch(err => {
-  console.error('💀 Fatal:', err.message);
+  console.error('[FATAL] Fatal:', err.message);
   process.exit(1);
 });

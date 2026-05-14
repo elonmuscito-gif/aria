@@ -67,7 +67,7 @@ gateRouter.get('/approve/:id', async (req, res) => {
 </head>
 <body>
   <div class="card">
-    <h1>&#x2705; Approve Action</h1>
+    <h1>Approve Action</h1>
     <p>Your AI agent is waiting for your approval
        to execute this action.</p>
     <button class="btn-approve" onclick="resolve('approve')">
@@ -86,12 +86,12 @@ gateRouter.get('/approve/:id', async (req, res) => {
       });
       if (r.ok) {
         document.querySelector('.card').innerHTML =
-          '<h1 style="color:#28c841">&#x2705; Action Approved</h1>' +
+          '<h1 style="color:#28c841">Action Approved</h1>' +
           '<p>Your agent can now proceed with the action.</p>' +
           '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
       } else {
         document.querySelector('.card').innerHTML =
-          '<h1 style="color:#c94c4c">&#x274C; Error</h1>' +
+          '<h1 style="color:#c94c4c">Error</h1>' +
           '<p>Request not found, already resolved, or expired.</p>' +
           '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
       }
@@ -131,7 +131,7 @@ gateRouter.get('/deny-page/:id', async (req, res) => {
 </head>
 <body>
   <div class="card">
-    <h1>&#x274C; Deny Action</h1>
+    <h1>Deny Action</h1>
     <p>This will prevent your AI agent from executing
        the requested action.</p>
     <button class="btn-deny" onclick="denyAction()">
@@ -148,12 +148,12 @@ gateRouter.get('/deny-page/:id', async (req, res) => {
       });
       if (r.ok) {
         document.querySelector('.card').innerHTML =
-          '<h1 style="color:#c94c4c">&#x274C; Action Denied</h1>' +
+          '<h1 style="color:#c94c4c">Action Denied</h1>' +
           '<p>Your agent has been blocked from executing this action.</p>' +
           '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
       } else {
         document.querySelector('.card').innerHTML =
-          '<h1 style="color:#c94c4c">&#x274C; Error</h1>' +
+          '<h1 style="color:#c94c4c">Error</h1>' +
           '<p>Request not found or already resolved.</p>' +
           '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
       }

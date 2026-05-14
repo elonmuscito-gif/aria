@@ -178,9 +178,9 @@ Every agent has a trust score from **0 to 100**:
 
 | Score | Level | Meaning |
 |-------|-------|---------|
-| 80 – 100 | ✅ TRUSTED | Agent behaves correctly |
-| 50 – 79 | ⚠️ NEUTRAL | Some issues detected |
-| 0 – 49 | ❌ UNTRUSTED | Significant problems found |
+| 80 – 100 | TRUSTED | Agent behaves correctly |
+| 50 – 79 | NEUTRAL | Some issues detected |
+| 0 – 49 | UNTRUSTED | Significant problems found |
 
 **Score changes per event:**
 

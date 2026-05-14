@@ -1074,7 +1074,7 @@
 
     <!-- ── POST-REGISTER message ── -->
     <div id="confirm-pending" class="hidden" style="text-align:center;padding:16px 0">
-      <div style="font-size:32px;margin-bottom:16px">✉️</div>
+      <div style="margin-bottom:16px"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="2" y="8" width="28" height="20" rx="2" stroke="#c9a84c" stroke-width="1.5"/><path d="M2 10l14 10L30 10" stroke="#c9a84c" stroke-width="1.5"/></svg></div>
       <h3 style="font-size:16px;font-weight:600;margin-bottom:8px">Check your email</h3>
       <p style="font-size:13px;color:var(--muted);line-height:1.6">
         We sent a confirmation link to your email address.<br>
@@ -1583,14 +1583,14 @@
                 style="flex:1;padding:10px;background:#28c841;
                        color:#04060d;border:none;border-radius:6px;
                        font-weight:600;font-size:14px;cursor:pointer">
-                ✅ Approve
+                Approve
               </button>
               <button
                 onclick="resolveGateRequest('${escapeHtml(req.id)}', 'deny')"
                 style="flex:1;padding:10px;background:#c94c4c;
                        color:#f8f4ee;border:none;border-radius:6px;
                        font-weight:600;font-size:14px;cursor:pointer">
-                ❌ Deny
+                Deny
               </button>
             </div>
           </div>`;
@@ -1615,8 +1615,8 @@
       });
       showDashboardNotice(
         action === 'approve'
-          ? '✅ Action approved successfully'
-          : '❌ Action denied successfully',
+          ? 'Action approved successfully'
+          : 'Action denied successfully',
         action === 'approve' ? 'success' : 'error'
       );
       loadGateRequests();
