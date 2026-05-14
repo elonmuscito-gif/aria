@@ -1,11 +1,41 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
 import { query } from '../db/pool.js';
 import { requireApiKey } from '../middleware/auth.js';
 import { sendGateRequestEmail } from '../services/email.js';
+import { getRedisClient } from '../utils/redis.js';
 
 export const gateRouter = Router();
 
 const APPROVAL_TIMEOUT_MINUTES = 5;
+
+const _gateRedis = getRedisClient();
+
+const gateRequestLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const cfIp = req.headers['cf-connecting-ip'];
+    if (cfIp && typeof cfIp === 'string') return cfIp;
+    return req.ip?.replace(/^::ffff:/, '') ?? 'unknown';
+  },
+  store: _gateRedis ? (() => {
+    try {
+      return new RedisStore({
+        sendCommand: (...args: string[]) => (_gateRedis as any).call(...args)
+      });
+    } catch { return undefined; }
+  })() : undefined,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many gate requests. Max 10 per minute.',
+      code: 'RATE_LIMITED'
+    });
+  }
+});
 
 // ── GET /v1/gate/approve/:id — Email link handler (no auth required) ──────
 gateRouter.get('/approve/:id', async (req, res) => {
@@ -209,7 +239,7 @@ gateRouter.post('/deny/:id', async (req, res) => {
 // ── POST /v1/gate/request ─────────────────────────────────────────────────
 // SDK calls this when agent attempts a gated action.
 // Returns { requestId, status } immediately.
-gateRouter.post('/request', requireApiKey, async (req, res) => {
+gateRouter.post('/request', gateRequestLimiter, requireApiKey, async (req, res) => {
   const { agentDid, action, context } = req.body as {
     agentDid?: string;
     action?: string;

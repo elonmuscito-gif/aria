@@ -35,28 +35,35 @@ export async function recordAnomaly(params: {
 
     console.warn(`[anomaly-detector] Recorded ${type} for agent ${agentId}`);
 
-    const agentInfo = await query<{ user_id: string | null; did: string; name: string }>(
-      `SELECT ak.user_id, a.did, a.name
-       FROM agents a
-       JOIN api_keys ak ON ak.id = a.api_key_id
-       WHERE a.id = $1`,
-      [agentId],
-    );
-    const info = agentInfo.rows[0];
-    if (info?.user_id) {
-      const severity =
-        type === "scope_violation" || type === "hardware_conflict" || type === "signature_failure" ? "CRITICAL"
-        : type === "rate_limit_exceeded" ? "HIGH"
-        : "MEDIUM";
-      triggerWebhooks(info.user_id, type, {
-        alert: "ANOMALY_DETECTED",
-        severity,
-        agent: { did: info.did, name: info.name },
-        reason: type,
-        action,
-        timestamp: new Date().toISOString(),
-      }).catch(() => {});
-    }
+    // Fire completely async — never blocks anomaly recording
+    setImmediate(async () => {
+      try {
+        const agentInfo = await query<{ user_id: string | null; did: string; name: string }>(
+          `SELECT ak.user_id, a.did, a.name
+           FROM agents a
+           JOIN api_keys ak ON ak.id = a.api_key_id
+           WHERE a.id = $1`,
+          [agentId],
+        );
+        const info = agentInfo.rows[0];
+        if (info?.user_id) {
+          const severity =
+            type === "scope_violation" || type === "hardware_conflict" || type === "signature_failure" ? "CRITICAL"
+            : type === "rate_limit_exceeded" ? "HIGH"
+            : "MEDIUM";
+          await triggerWebhooks(info.user_id, type, {
+            alert: "ANOMALY_DETECTED",
+            severity,
+            agent: { did: info.did, name: info.name },
+            reason: type,
+            action,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // Non-critical — never throw
+      }
+    });
   } catch (err) {
     console.error("[anomaly-detector] Failed to record anomaly (non-critical):", err instanceof Error ? err.message : String(err));
   }

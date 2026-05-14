@@ -287,8 +287,21 @@ eventsRouter.post("/batch", async (req, res) => {
   };
 
   const firstEvent = events[0]!;
-  const agentLookup = await query<{ id: string; did: string; scope: string[]; hmac_key: string | null; meta: Record<string, unknown> | null; signing_version: number }>(
-    `SELECT id, did, scope, hmac_key, meta, signing_version FROM agents WHERE did = $1 AND api_key_id = $2`,
+  const agentLookup = await query<{
+    id: string; did: string; scope: string[];
+    hmac_key: string | null;
+    meta: Record<string, unknown> | null;
+    signing_version: number
+  }>(
+    `SELECT id, did, scope, hmac_key, meta, signing_version
+     FROM agents
+     WHERE did = $1 AND (
+       api_key_id = $2
+       OR user_id = (
+         SELECT user_id FROM api_keys
+         WHERE id = $2 AND user_id IS NOT NULL
+       )
+     )`,
     [firstEvent.agentDid, req.apiKeyId],
   );
 

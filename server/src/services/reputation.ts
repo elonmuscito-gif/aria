@@ -45,8 +45,8 @@ async function computeReputationIncremental(agentId: string): Promise<void> {
   );
   const prevScore = parseFloat(lastSnap.rows[0]?.prev_score ?? '100');
 
-  // STEP 1 — Query success rate by time window
-  const windowResult = await query<{
+  // STEP 1 — Single query for both window metrics and all-time totals
+  const combinedResult = await query<{
     total_7d: string;
     success_7d: string;
     total_14d: string;
@@ -56,6 +56,12 @@ async function computeReputationIncremental(agentId: string): Promise<void> {
     scope_violations_30d: string;
     hardware_conflicts_30d: string;
     anomalies_30d: string;
+    total_events: string;
+    success_count: string;
+    error_count: string;
+    anomaly_count: string;
+    scope_violation_count: string;
+    hardware_conflict_count: string;
   }>(`
     SELECT
       COUNT(*) FILTER (
@@ -63,24 +69,21 @@ async function computeReputationIncremental(agentId: string): Promise<void> {
       ) AS total_7d,
       COUNT(*) FILTER (
         WHERE recorded_at > NOW() - INTERVAL '7 days'
-        AND outcome = 'success'
-        AND server_within_scope = true
+        AND outcome = 'success' AND server_within_scope = true
       ) AS success_7d,
       COUNT(*) FILTER (
         WHERE recorded_at > NOW() - INTERVAL '14 days'
       ) AS total_14d,
       COUNT(*) FILTER (
         WHERE recorded_at > NOW() - INTERVAL '14 days'
-        AND outcome = 'success'
-        AND server_within_scope = true
+        AND outcome = 'success' AND server_within_scope = true
       ) AS success_14d,
       COUNT(*) FILTER (
         WHERE recorded_at > NOW() - INTERVAL '30 days'
       ) AS total_30d,
       COUNT(*) FILTER (
         WHERE recorded_at > NOW() - INTERVAL '30 days'
-        AND outcome = 'success'
-        AND server_within_scope = true
+        AND outcome = 'success' AND server_within_scope = true
       ) AS success_30d,
       COUNT(*) FILTER (
         WHERE recorded_at > NOW() - INTERVAL '30 days'
@@ -93,12 +96,22 @@ async function computeReputationIncremental(agentId: string): Promise<void> {
       COUNT(*) FILTER (
         WHERE recorded_at > NOW() - INTERVAL '30 days'
         AND outcome = 'anomaly'
-      ) AS anomalies_30d
+      ) AS anomalies_30d,
+      COUNT(*) AS total_events,
+      COUNT(*) FILTER (WHERE outcome = 'success') AS success_count,
+      COUNT(*) FILTER (WHERE outcome = 'error') AS error_count,
+      COUNT(*) FILTER (WHERE outcome = 'anomaly') AS anomaly_count,
+      COUNT(*) FILTER (
+        WHERE server_within_scope = false
+      ) AS scope_violation_count,
+      COUNT(*) FILTER (
+        WHERE (meta->>'hardware_conflict')::boolean = true
+      ) AS hardware_conflict_count
     FROM events
     WHERE agent_id = $1
   `, [agentId]);
 
-  const w = windowResult.rows[0];
+  const w = combinedResult.rows[0];
   if (!w) return;
 
   // STEP 2 — Calculate weighted success rate
@@ -158,36 +171,11 @@ async function computeReputationIncremental(agentId: string): Promise<void> {
     : finalScore >= 50 ? 'NEUTRAL'
     : 'UNTRUSTED';
 
-  // STEP 5 — Keep existing totals for display purposes
-  const totalsResult = await query<{
-    total_events: string;
-    success_count: string;
-    error_count: string;
-    anomaly_count: string;
-    scope_violation_count: string;
-    hardware_conflict_count: string;
-  }>(`
-    SELECT
-      COUNT(*) AS total_events,
-      COUNT(*) FILTER (WHERE outcome = 'success') AS success_count,
-      COUNT(*) FILTER (WHERE outcome = 'error') AS error_count,
-      COUNT(*) FILTER (WHERE outcome = 'anomaly') AS anomaly_count,
-      COUNT(*) FILTER (WHERE server_within_scope = false) AS scope_violation_count,
-      COUNT(*) FILTER (
-        WHERE (meta->>'hardware_conflict')::boolean = true
-      ) AS hardware_conflict_count
-    FROM events
-    WHERE agent_id = $1
-  `, [agentId]);
-
-  const totals = totalsResult.rows[0];
-  if (!totals) return;
-
-  const successRate = parseInt(totals.total_events) > 0
-    ? ((parseInt(totals.success_count) / parseInt(totals.total_events)) * 100).toFixed(2)
+  const successRate = parseInt(w.total_events) > 0
+    ? ((parseInt(w.success_count) / parseInt(w.total_events)) * 100).toFixed(2)
     : null;
 
-  // STEP 6 — Upsert reputation snapshot
+  // STEP 5 — Upsert reputation snapshot
   await query(`
     INSERT INTO reputation_snapshots
       (agent_id, total_events, success_count, error_count, anomaly_count,
@@ -208,12 +196,12 @@ async function computeReputationIncremental(agentId: string): Promise<void> {
       last_computed_at        = NOW()
   `, [
     agentId,
-    totals.total_events,
-    totals.success_count,
-    totals.error_count,
-    totals.anomaly_count,
-    totals.scope_violation_count,
-    totals.hardware_conflict_count,
+    w.total_events,
+    w.success_count,
+    w.error_count,
+    w.anomaly_count,
+    w.scope_violation_count,
+    w.hardware_conflict_count,
     successRate,
     finalScore,
     trustLevel,
