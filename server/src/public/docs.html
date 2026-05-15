@@ -636,6 +636,11 @@ console.<span class="fn">log</span>(agent.secret); <span class="cm">// keep this
           <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/temporal/verify/:eventId</td><td class="ep-desc">Verify event proof</td></tr>
           <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/temporal/anchors/:did</td><td class="ep-desc">Anchor summary for agent</td></tr>
           <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/temporal/anchors/:did/list</td><td class="ep-desc">List all anchors for agent</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/zeroproof/innocence</td><td class="ep-desc">Generate Proof of Innocence</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/zeroproof/consistency</td><td class="ep-desc">Generate Proof of Consistency</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/zeroproof/limits</td><td class="ep-desc">Generate Proof of Limits</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/zeroproof/verify/:id</td><td class="ep-desc">Verify a proof</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/zeroproof/list/:did</td><td class="ep-desc">List proofs for agent</td></tr>
         </tbody>
       </table>
     </div>

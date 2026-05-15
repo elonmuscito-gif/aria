@@ -1888,6 +1888,100 @@
         if (witnessEl) witnessEl.insertAdjacentHTML('afterend', html);
       }
 
+      // ZeroProof section
+      const proofsData = await apiCall(
+        `/v1/zeroproof/list/${encodeURIComponent(did)}`
+      ).catch(() => ({ proofs: [] }));
+
+      const proofs = proofsData.proofs || [];
+
+      let zeroProofHtml = `
+        <div class="section-title"
+             style="margin-bottom:16px;margin-top:8px">
+          Zero Proofs
+        </div>
+        <div style="display:flex;gap:10px;
+                    margin-bottom:16px;flex-wrap:wrap">
+          <button
+            onclick="generateProof('${did}','innocence')"
+            style="padding:8px 16px;background:transparent;
+                   border:1px solid rgba(40,200,65,0.3);
+                   color:#28c841;border-radius:4px;
+                   font-size:12px;cursor:pointer;
+                   font-family:'DM Sans',sans-serif">
+            Proof of Innocence
+          </button>
+          <button
+            onclick="generateProof('${did}','consistency')"
+            style="padding:8px 16px;background:transparent;
+                   border:1px solid rgba(201,168,76,0.3);
+                   color:#e8c87a;border-radius:4px;
+                   font-size:12px;cursor:pointer;
+                   font-family:'DM Sans',sans-serif">
+            Proof of Consistency
+          </button>
+          <button
+            onclick="generateProof('${did}','limits')"
+            style="padding:8px 16px;background:transparent;
+                   border:1px solid rgba(255,189,46,0.3);
+                   color:#ffbd2e;border-radius:4px;
+                   font-size:12px;cursor:pointer;
+                   font-family:'DM Sans',sans-serif">
+            Proof of Limits
+          </button>
+        </div>`;
+
+      if (proofs.length > 0) {
+        proofs.forEach(p => {
+          const color = p.verified ? '#28c841' : '#c94c4c';
+          const status = p.verified ? 'PROVEN' : 'FAILED';
+          zeroProofHtml += `
+            <div style="background:#07090f;
+                        border:1px solid rgba(255,255,255,0.06);
+                        border-left:3px solid ${color};
+                        border-radius:8px;padding:16px 20px;
+                        margin-bottom:10px">
+              <div style="display:flex;
+                          justify-content:space-between;
+                          align-items:center;
+                          margin-bottom:8px">
+                <span style="font-size:10px;font-weight:600;
+                             color:${color};letter-spacing:1px;
+                             text-transform:uppercase">
+                  ${p.proof_type.toUpperCase()} · ${status}
+                </span>
+                <span style="font-family:'JetBrains Mono',monospace;
+                             font-size:10px;
+                             color:rgba(248,244,238,0.3)">
+                  ${relativeTime(p.created_at)}
+                </span>
+              </div>
+              <div style="font-size:13px;
+                          color:rgba(248,244,238,0.75);
+                          margin-bottom:8px">
+                ${escapeHtml(p.claim)}
+              </div>
+              <div style="font-family:'JetBrains Mono',monospace;
+                          font-size:10px;
+                          color:rgba(248,244,238,0.3)">
+                root: ${p.merkle_root.slice(0,32)}...
+              </div>
+            </div>`;
+        });
+      } else {
+        zeroProofHtml += `
+          <div style="color:rgba(248,244,238,0.35);
+                      font-size:13px;padding:16px 0">
+            No proofs generated yet.
+            Click a button above to generate your first proof.
+          </div>`;
+      }
+
+      const patternContainer2 = document.getElementById('detail-patterns');
+      if (patternContainer2) {
+        patternContainer2.insertAdjacentHTML('beforebegin', zeroProofHtml);
+      }
+
       // Spectrum: fetch and render behavioral patterns
       const patternsData = await apiCall(
         `/v1/agents/${encodeURIComponent(did)}/patterns`
@@ -2048,6 +2142,50 @@
     return String(str)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  async function generateProof(did, type) {
+    const endpoints = {
+      innocence: {
+        url: '/v1/zeroproof/innocence',
+        body: {
+          agentDid: did,
+          forbidden_pattern: 'delete:*',
+          window_days: 30
+        }
+      },
+      consistency: {
+        url: '/v1/zeroproof/consistency',
+        body: {
+          agentDid: did,
+          min_success_rate: 70,
+          window_days: 30
+        }
+      },
+      limits: {
+        url: '/v1/zeroproof/limits',
+        body: {
+          agentDid: did,
+          max_events_per_hour: 500,
+          window_days: 30
+        }
+      }
+    };
+
+    const config = endpoints[type];
+    if (!config) return;
+
+    try {
+      showDashboardNotice(`Generating ${type} proof...`, 'info');
+      await apiCall(config.url, {
+        method: 'POST',
+        body: JSON.stringify(config.body)
+      });
+      showDashboardNotice(`${type} proof generated successfully`, 'success');
+      await loadAgentDetail(did);
+    } catch (err) {
+      showDashboardNotice(`Failed to generate proof: ${err.message}`, 'error');
+    }
   }
 
   function relativeTime(dateStr) {

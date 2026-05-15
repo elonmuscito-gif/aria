@@ -121,6 +121,7 @@ const ALLOWED_PATHS = [
   "/v1/gate",
   "/v1/witness",
   "/v1/temporal",
+  "/v1/zeroproof",
 ];
 
 app.use((req, _res, next) => {
