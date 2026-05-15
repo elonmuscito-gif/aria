@@ -2,6 +2,7 @@ import { syncToPublicTable } from "./sync-public-reputation.js";
 import { query } from "../db/pool.js";
 import { triggerWebhooks } from "./webhook.js";
 import { analyzeAgentBehavior } from "./pattern-detector.js";
+import { createWitnessCheck } from "./shadow-witness.js";
 
 class ReputationQueue {
   private pending = new Set<string>();
@@ -213,6 +214,11 @@ async function computeReputationIncremental(agentId: string): Promise<void> {
   // Run Spectrum analysis in background
   setImmediate(() => {
     analyzeAgentBehavior(agentId).catch(() => {});
+  });
+
+  // Run Shadow Witness check in background
+  setImmediate(() => {
+    createWitnessCheck(agentId).catch(() => {});
   });
 
   if (finalScore < 20 && prevScore >= 20) {

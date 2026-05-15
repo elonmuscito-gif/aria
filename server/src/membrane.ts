@@ -119,6 +119,7 @@ const ALLOWED_PATHS = [
   "/v1/api-keys",
   "/v1/webhooks",
   "/v1/gate",
+  "/v1/witness",
 ];
 
 app.use((req, _res, next) => {

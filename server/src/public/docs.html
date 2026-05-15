@@ -628,6 +628,10 @@ console.<span class="fn">log</span>(agent.secret); <span class="cm">// keep this
           <tr><td><span class="method m-del">DELETE</span></td><td class="ep-path">/v1/webhooks/:id</td><td class="ep-desc">Remove webhook</td></tr>
           <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/api-keys</td><td class="ep-desc">Create API key</td></tr>
           <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/api-keys/rotate</td><td class="ep-desc">Rotate API key</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/witness/sources</td><td class="ep-desc">Register external witness source</td></tr>
+          <tr><td><span class="method m-post">POST</span></td><td class="ep-path">/v1/witness/confirm/:id</td><td class="ep-desc">Submit external event count</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/witness/checks</td><td class="ep-desc">List verification checks</td></tr>
+          <tr><td><span class="method m-get">GET</span></td><td class="ep-path">/v1/witness/agents/:did</td><td class="ep-desc">Witness summary for agent</td></tr>
         </tbody>
       </table>
     </div>

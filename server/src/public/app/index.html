@@ -1785,6 +1785,7 @@
             ${(agent.scope || []).map(s => `<span class="scope-tag">${escapeHtml(s)}</span>`).join('')}
           </div>
         </div>
+        <div id="detail-witness"></div>
         <div class="detail-stats">
           <div class="detail-stat">
             <div class="detail-stat-value">${agent.total_events || 0}</div>
@@ -1813,6 +1814,34 @@
       `;
 
       document.querySelectorAll('.detail-stat').forEach(el => el.classList.add('visible'));
+
+      // Shadow Witness: fetch and render verification badge
+      const witnessData = await apiCall(
+        `/v1/witness/agents/${encodeURIComponent(did)}`
+      ).catch(() => null);
+      if (witnessData) {
+        const statusColor =
+          witnessData.verification_status === 'verified'    ? '#28c841' :
+          witnessData.verification_status === 'discrepancy' ? '#c94c4c' :
+          witnessData.verification_status === 'pending'     ? '#ffbd2e' :
+          'rgba(248,244,238,0.3)';
+        const statusLabel =
+          witnessData.verification_status === 'verified'    ? 'Shadow Verified' :
+          witnessData.verification_status === 'discrepancy' ? 'Discrepancy Detected' :
+          witnessData.verification_status === 'pending'     ? 'Verification Pending' :
+          'Not Registered';
+        document.getElementById('detail-witness').innerHTML = `
+          <div style="display:inline-flex;align-items:center;gap:6px;
+                      padding:4px 12px;border:1px solid ${statusColor};
+                      border-radius:12px;margin-bottom:20px">
+            <div style="width:6px;height:6px;border-radius:50%;
+                        background:${statusColor}"></div>
+            <span style="font-size:11px;font-weight:600;color:${statusColor};
+                         letter-spacing:0.5px;text-transform:uppercase">
+              ${statusLabel}
+            </span>
+          </div>`;
+      }
 
       // Spectrum: fetch and render behavioral patterns
       const patternsData = await apiCall(
