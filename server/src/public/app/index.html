@@ -990,6 +990,139 @@
       opacity: 1 !important;
       transform: translateY(0) !important;
     }
+
+    /* Gate Toast */
+    #gate-toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 380px;
+      pointer-events: none;
+    }
+
+    .gate-toast {
+      background: #07090f;
+      border: 1px solid rgba(201,168,76,0.4);
+      border-left: 4px solid #c9a84c;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      pointer-events: all;
+      animation: slideIn 0.3s ease;
+      width: 100%;
+    }
+
+    .gate-toast.critical {
+      border-left-color: #c94c4c;
+      border-color: rgba(201,76,76,0.4);
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to   { transform: translateX(0);   opacity: 1; }
+    }
+
+    @keyframes slideOut {
+      from { transform: translateX(0);   opacity: 1; }
+      to   { transform: translateX(120%); opacity: 0; }
+    }
+
+    .gate-toast.dismissing {
+      animation: slideOut 0.3s ease forwards;
+    }
+
+    .gate-toast-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #c9a84c;
+      margin-bottom: 8px;
+    }
+
+    .gate-toast-agent {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f8f4ee;
+      margin-bottom: 4px;
+    }
+
+    .gate-toast-action {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #e8c87a;
+      margin-bottom: 12px;
+      word-break: break-all;
+    }
+
+    .gate-toast-timer {
+      font-size: 11px;
+      color: rgba(248,244,238,0.4);
+      margin-bottom: 14px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .gate-toast-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .gate-toast-approve {
+      flex: 1;
+      padding: 9px;
+      background: #28c841;
+      color: #04060d;
+      border: none;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: opacity 0.2s;
+    }
+
+    .gate-toast-approve:hover { opacity: 0.85; }
+
+    .gate-toast-deny {
+      flex: 1;
+      padding: 9px;
+      background: transparent;
+      color: #c94c4c;
+      border: 1px solid rgba(201,76,76,0.4);
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+
+    .gate-toast-deny:hover {
+      background: rgba(201,76,76,0.1);
+      border-color: #c94c4c;
+    }
+
+    .gate-toast-resolved {
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      padding: 8px;
+      border-radius: 4px;
+    }
+
+    .gate-toast-resolved.approved {
+      background: rgba(40,200,65,0.1);
+      color: #28c841;
+    }
+
+    .gate-toast-resolved.denied {
+      background: rgba(201,76,76,0.1);
+      color: #c94c4c;
+    }
   </style>
 </head>
 <body>
@@ -1092,6 +1225,7 @@
 <!-- ══════════════════════════════════════════════════════════
      DASHBOARD SCREEN
 ══════════════════════════════════════════════════════════ -->
+<div id="gate-toast-container"></div>
 <div id="dashboard-screen" class="hidden">
     <!-- Navbar -->
     <nav class="navbar">
@@ -1459,6 +1593,15 @@
       document.getElementById('user-email-display').textContent = displayEmail;
       loadDashboard();
       refreshInterval = setInterval(loadDashboard, 10000);
+
+      // Request browser notification permission
+      requestNotificationPermission();
+
+      // Poll for gate requests every 5 seconds
+      setInterval(pollGateRequests, 5000);
+
+      // Run immediately on load
+      pollGateRequests();
     }
 
   async function apiCall(endpoint, options = {}) {
@@ -2133,6 +2276,175 @@
       alert('Key rotated. Copy your new key now — it will not be shown again.\n\n' + apiKey);
     } catch (err) {
       alert('Failed: ' + err.message);
+    }
+  }
+
+  // ── GATE REAL-TIME NOTIFICATIONS ─────────────────────────────────────────
+
+  async function requestNotificationPermission() {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') return false;
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  }
+
+  function showBrowserNotification(request) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    const notification = new Notification('ARIA Gate', {
+      body: `${request.agent_name} wants to execute:\n${request.action}`,
+      icon: '/favicon.ico',
+      tag: `gate-${request.id}`,
+      requireInteraction: true
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      showTab('gate', document.getElementById('tab-btn-gate'));
+      notification.close();
+    };
+
+    const timeUntilExpiry = new Date(request.timeout_at) - Date.now();
+    if (timeUntilExpiry > 0) {
+      setTimeout(() => notification.close(), timeUntilExpiry);
+    }
+  }
+
+  const activeToasts = new Set();
+
+  function showGateToast(request) {
+    if (activeToasts.has(request.id)) return;
+    activeToasts.add(request.id);
+
+    const container = document.getElementById('gate-toast-container');
+    if (!container) return;
+
+    const timeoutAt = new Date(request.timeout_at);
+    const toast = document.createElement('div');
+    toast.className = 'gate-toast';
+    toast.id = `toast-${request.id}`;
+
+    function getTimeLeft() {
+      const secs = Math.max(0, Math.floor((timeoutAt - Date.now()) / 1000));
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      return `${m}:${String(s).padStart(2,'0')} remaining`;
+    }
+
+    toast.innerHTML = `
+      <div class="gate-toast-label">Gate — Approval Required</div>
+      <div class="gate-toast-agent">${escapeHtml(request.agent_name || 'Agent')}</div>
+      <div class="gate-toast-action">${escapeHtml(request.action)}</div>
+      <div class="gate-toast-timer" id="timer-toast-${request.id}">${getTimeLeft()}</div>
+      <div class="gate-toast-buttons" id="buttons-${request.id}">
+        <button class="gate-toast-approve"
+          onclick="resolveGateToast('${request.id}','approve')">
+          Approve
+        </button>
+        <button class="gate-toast-deny"
+          onclick="resolveGateToast('${request.id}','deny')">
+          Deny
+        </button>
+      </div>
+    `;
+
+    container.appendChild(toast);
+
+    const timerInterval = setInterval(() => {
+      const timerEl = document.getElementById(`timer-toast-${request.id}`);
+      if (!timerEl) { clearInterval(timerInterval); return; }
+      const timeLeft = getTimeLeft();
+      timerEl.textContent = timeLeft;
+      if (timeLeft === '0:00 remaining') {
+        clearInterval(timerInterval);
+        dismissToast(request.id, 'timeout');
+      }
+    }, 1000);
+
+    toast.dataset.interval = String(timerInterval);
+  }
+
+  async function resolveGateToast(requestId, action) {
+    const buttonsEl = document.getElementById(`buttons-${requestId}`);
+    if (buttonsEl) {
+      buttonsEl.innerHTML = `
+        <div style="text-align:center;width:100%;font-size:12px;color:rgba(248,244,238,0.5)">
+          Processing...
+        </div>`;
+    }
+
+    try {
+      await apiCall(`/v1/gate/${action}/${requestId}`, {
+        method: 'POST',
+        body: '{}'
+      });
+
+      const isApproved = action === 'approve';
+      const buttonsContainer = document.getElementById(`buttons-${requestId}`);
+      if (buttonsContainer) {
+        buttonsContainer.innerHTML = `
+          <div class="gate-toast-resolved ${isApproved ? 'approved' : 'denied'}">
+            ${isApproved ? 'Approved' : 'Denied'}
+          </div>`;
+      }
+
+      setTimeout(() => dismissToast(requestId), 3000);
+
+      if (currentTab === 'gate') loadGateRequests();
+      checkGateBadge();
+
+    } catch (err) {
+      const buttonsContainer = document.getElementById(`buttons-${requestId}`);
+      if (buttonsContainer) {
+        buttonsContainer.innerHTML = `
+          <div style="color:#c94c4c;font-size:12px;text-align:center;width:100%">
+            Failed: ${escapeHtml(err.message)}
+          </div>`;
+      }
+    }
+  }
+
+  function dismissToast(requestId) {
+    const toast = document.getElementById(`toast-${requestId}`);
+    if (!toast) return;
+    if (toast.dataset.interval) clearInterval(parseInt(toast.dataset.interval));
+    toast.classList.add('dismissing');
+    setTimeout(() => { toast.remove(); activeToasts.delete(requestId); }, 300);
+  }
+
+  const notifiedRequests = new Set();
+
+  async function pollGateRequests() {
+    try {
+      const data = await apiCall('/v1/gate/pending');
+      const requests = data.requests || [];
+
+      const badge = document.getElementById('gate-badge');
+      if (badge) {
+        if (requests.length > 0) {
+          badge.textContent = requests.length;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      for (const request of requests) {
+        if (!notifiedRequests.has(request.id)) {
+          notifiedRequests.add(request.id);
+          showGateToast(request);
+          showBrowserNotification(request);
+        }
+      }
+
+      const activeIds = new Set(requests.map(r => r.id));
+      for (const id of notifiedRequests) {
+        if (!activeIds.has(id)) notifiedRequests.delete(id);
+      }
+    } catch {
+      // Silently fail
     }
   }
 
