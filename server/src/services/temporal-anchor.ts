@@ -48,7 +48,8 @@ export async function createTemporalAnchor(
         e.agent_id::text
       FROM events e
       WHERE e.agent_id = $1
-      ORDER BY e.recorded_at ASC
+      ORDER BY e.recorded_at DESC
+      LIMIT 500
     `;
 
     const params: unknown[] = [agentId];
@@ -66,7 +67,7 @@ export async function createTemporalAnchor(
             WHERE event_id = $2
           )
         ORDER BY e.recorded_at ASC
-        LIMIT 1000
+        LIMIT 500
       `;
       params.push(previousAnchor.last_event_id);
     }
