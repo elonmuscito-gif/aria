@@ -79,7 +79,7 @@ export async function sendGateRequestEmail(
   const approveUrl =
     `${process.env.APP_URL}/v1/gate/approve/${requestId}`;
   const denyUrl =
-    `${process.env.APP_URL}/v1/gate/deny/${requestId}`;
+    `${process.env.APP_URL}/v1/gate/deny-page/${requestId}`;
   const dashboardUrl =
     `${process.env.APP_URL}/app`;
 

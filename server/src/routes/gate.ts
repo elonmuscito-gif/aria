@@ -37,130 +37,121 @@ const gateRequestLimiter = rateLimit({
   }
 });
 
-// ── GET /v1/gate/approve/:id — Email link handler (no auth required) ──────
+// ── GET /v1/gate/approve/:id — Email link: directly approves the request ──
 gateRouter.get('/approve/:id', async (req, res) => {
-  const { id } = req.params;
-  return res.send(`<!DOCTYPE html>
-<html>
-<head>
-  <title>ARIA Gate — Approve Action</title>
-  <meta charset="UTF-8">
-  <style>
-    body{font-family:system-ui;background:#04060d;
-         color:#f8f4ee;display:flex;align-items:center;
-         justify-content:center;min-height:100vh;margin:0}
-    .card{background:#07090f;border:1px solid rgba(255,255,255,0.1);
-          border-top:3px solid #28c841;border-radius:8px;
-          padding:40px;text-align:center;max-width:400px}
-    h1{color:#28c841;margin-bottom:16px}
-    p{color:rgba(248,244,238,0.6);margin-bottom:32px}
-    .btn-approve{display:block;width:100%;padding:14px;
-                 background:#28c841;color:#04060d;border:none;
-                 border-radius:6px;font-size:16px;font-weight:600;
-                 cursor:pointer}
-    .btn-deny{display:block;width:100%;padding:14px;margin-top:12px;
-              background:transparent;color:rgba(248,244,238,0.4);
-              border:1px solid rgba(255,255,255,0.1);
-              border-radius:6px;font-size:14px;cursor:pointer;
-              text-decoration:none;box-sizing:border-box}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Approve Action</h1>
-    <p>Your AI agent is waiting for your approval
-       to execute this action.</p>
-    <button class="btn-approve" onclick="resolve('approve')">
-      Approve Action
-    </button>
-    <a href="/v1/gate/deny-page/${id}" class="btn-deny">
-      Deny instead
-    </a>
-  </div>
-  <script>
-    async function resolve(action) {
-      const r = await fetch('/v1/gate/' + action + '/${id}', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: '{}'
-      });
-      if (r.ok) {
-        document.querySelector('.card').innerHTML =
-          '<h1 style="color:#28c841">Action Approved</h1>' +
-          '<p>Your agent can now proceed with the action.</p>' +
-          '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
-      } else {
-        document.querySelector('.card').innerHTML =
-          '<h1 style="color:#c94c4c">Error</h1>' +
-          '<p>Request not found, already resolved, or expired.</p>' +
-          '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
-      }
+  try {
+    const result = await query<{
+      id: string; status: string; agent_name: string; action: string;
+    }>(
+      `UPDATE gate_requests
+       SET status = 'approved',
+           resolved_at = NOW(),
+           resolved_by = 'email_link'
+       WHERE id = $1
+         AND status = 'pending'
+         AND timeout_at > NOW()
+       RETURNING id, status, agent_name, action`,
+      [req.params.id]
+    );
+
+    if (!result.rows[0]) {
+      return res.send(`<!DOCTYPE html>
+<html><head><title>ARIA Gate</title>
+<style>body{font-family:system-ui;background:#04060d;
+color:#f8f4ee;display:flex;align-items:center;
+justify-content:center;min-height:100vh;margin:0}
+.card{background:#07090f;border:1px solid rgba(255,255,255,0.1);
+border-top:3px solid #ffbd2e;border-radius:8px;
+padding:40px;text-align:center;max-width:400px}
+h1{color:#ffbd2e}p{color:rgba(248,244,238,0.6)}</style>
+</head><body><div class="card">
+<h1>Already Resolved</h1>
+<p>This gate request has already been resolved or expired.</p>
+<a href="/app" style="color:#c9a84c">Back to dashboard</a>
+</div></body></html>`);
     }
-  </script>
-</body>
-</html>`);
+
+    const req_data = result.rows[0];
+    return res.send(`<!DOCTYPE html>
+<html><head><title>ARIA Gate — Approved</title>
+<style>body{font-family:system-ui;background:#04060d;
+color:#f8f4ee;display:flex;align-items:center;
+justify-content:center;min-height:100vh;margin:0}
+.card{background:#07090f;border:1px solid rgba(255,255,255,0.1);
+border-top:3px solid #28c841;border-radius:8px;
+padding:40px;text-align:center;max-width:400px}
+h1{color:#28c841}p{color:rgba(248,244,238,0.6)}
+a{color:#c9a84c}</style>
+</head><body><div class="card">
+<h1>Action Approved</h1>
+<p>Agent: <strong>${req_data.agent_name}</strong></p>
+<p>Action: <strong style="color:#e8c87a;font-family:monospace">
+${req_data.action}</strong></p>
+<p>The agent will proceed with this action.</p>
+<a href="/app">Back to dashboard</a>
+</div></body></html>`);
+  } catch (err) {
+    console.error('[gate] GET /approve error:', err);
+    return res.status(500).send('Server error');
+  }
 });
 
-// ── GET /v1/gate/deny-page/:id — Deny confirmation page (no auth required) ─
+// ── GET /v1/gate/deny-page/:id — Email link: directly denies the request ──
 gateRouter.get('/deny-page/:id', async (req, res) => {
-  const { id } = req.params;
-  return res.send(`<!DOCTYPE html>
-<html>
-<head>
-  <title>ARIA Gate — Deny Action</title>
-  <meta charset="UTF-8">
-  <style>
-    body{font-family:system-ui;background:#04060d;
-         color:#f8f4ee;display:flex;align-items:center;
-         justify-content:center;min-height:100vh;margin:0}
-    .card{background:#07090f;border:1px solid rgba(255,255,255,0.1);
-          border-top:3px solid #c94c4c;border-radius:8px;
-          padding:40px;text-align:center;max-width:400px}
-    h1{color:#c94c4c;margin-bottom:16px}
-    p{color:rgba(248,244,238,0.6);margin-bottom:32px}
-    .btn-deny{display:block;width:100%;padding:14px;
-              background:#c94c4c;color:#f8f4ee;border:none;
-              border-radius:6px;font-size:16px;font-weight:600;
-              cursor:pointer}
-    .btn-back{display:block;width:100%;padding:14px;margin-top:12px;
-              background:transparent;color:rgba(248,244,238,0.4);
-              border:1px solid rgba(255,255,255,0.1);
-              border-radius:6px;font-size:14px;cursor:pointer;
-              text-decoration:none;box-sizing:border-box}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Deny Action</h1>
-    <p>This will prevent your AI agent from executing
-       the requested action.</p>
-    <button class="btn-deny" onclick="denyAction()">
-      Deny Action
-    </button>
-    <a href="/app" class="btn-back">Back to dashboard</a>
-  </div>
-  <script>
-    async function denyAction() {
-      const r = await fetch('/v1/gate/deny/${id}', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: '{}'
-      });
-      if (r.ok) {
-        document.querySelector('.card').innerHTML =
-          '<h1 style="color:#c94c4c">Action Denied</h1>' +
-          '<p>Your agent has been blocked from executing this action.</p>' +
-          '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
-      } else {
-        document.querySelector('.card').innerHTML =
-          '<h1 style="color:#c94c4c">Error</h1>' +
-          '<p>Request not found or already resolved.</p>' +
-          '<p><a href="/app" style="color:#c9a84c">Back to dashboard</a></p>';
-      }
+  try {
+    const result = await query<{
+      id: string; status: string; agent_name: string; action: string;
+    }>(
+      `UPDATE gate_requests
+       SET status = 'denied',
+           resolved_at = NOW(),
+           resolved_by = 'email_link'
+       WHERE id = $1
+         AND status = 'pending'
+       RETURNING id, status, agent_name, action`,
+      [req.params.id]
+    );
+
+    if (!result.rows[0]) {
+      return res.send(`<!DOCTYPE html>
+<html><head><title>ARIA Gate</title>
+<style>body{font-family:system-ui;background:#04060d;
+color:#f8f4ee;display:flex;align-items:center;
+justify-content:center;min-height:100vh;margin:0}
+.card{background:#07090f;border:1px solid rgba(255,255,255,0.1);
+border-top:3px solid #ffbd2e;border-radius:8px;
+padding:40px;text-align:center;max-width:400px}
+h1{color:#ffbd2e}p{color:rgba(248,244,238,0.6)}</style>
+</head><body><div class="card">
+<h1>Already Resolved</h1>
+<p>This gate request has already been resolved or expired.</p>
+<a href="/app" style="color:#c9a84c">Back to dashboard</a>
+</div></body></html>`);
     }
-  </script>
-</body>
-</html>`);
+
+    const req_data = result.rows[0];
+    return res.send(`<!DOCTYPE html>
+<html><head><title>ARIA Gate — Denied</title>
+<style>body{font-family:system-ui;background:#04060d;
+color:#f8f4ee;display:flex;align-items:center;
+justify-content:center;min-height:100vh;margin:0}
+.card{background:#07090f;border:1px solid rgba(255,255,255,0.1);
+border-top:3px solid #c94c4c;border-radius:8px;
+padding:40px;text-align:center;max-width:400px}
+h1{color:#c94c4c}p{color:rgba(248,244,238,0.6)}
+a{color:#c9a84c}</style>
+</head><body><div class="card">
+<h1>Action Denied</h1>
+<p>Agent: <strong>${req_data.agent_name}</strong></p>
+<p>Action: <strong style="color:#e8c87a;font-family:monospace">
+${req_data.action}</strong></p>
+<p>The agent has been notified and will not proceed.</p>
+<a href="/app">Back to dashboard</a>
+</div></body></html>`);
+  } catch (err) {
+    console.error('[gate] GET /deny-page error:', err);
+    return res.status(500).send('Server error');
+  }
 });
 
 // ── POST /v1/gate/approve/:id (no auth — UUID is the secret) ─────────────
