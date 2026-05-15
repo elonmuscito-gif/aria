@@ -14,7 +14,7 @@ const _gateRedis = getRedisClient();
 
 const gateRequestLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
