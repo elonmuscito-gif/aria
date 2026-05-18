@@ -24,7 +24,8 @@
     "migrate:016": "tsx migrate-016.ts",
     "migrate:017": "tsx migrate-017.ts",
     "migrate:018": "tsx migrate-018.ts",
-    "cli": "node cli-dashboard.mjs"
+    "cli": "node cli-dashboard.mjs",
+    "test:integration": "tsx src/tests/integration.test.ts"
   },
   "keywords": [],
   "author": "",
