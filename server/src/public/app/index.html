@@ -1459,7 +1459,11 @@
       const displayEmail = currentUser?.email || '';
       document.getElementById('user-email-display').textContent = displayEmail;
       loadDashboard();
-      refreshInterval = setInterval(loadDashboard, 10000);
+      refreshInterval = setInterval(async () => {
+        const savedScrollY = window.scrollY;
+        await loadDashboard();
+        window.scrollTo(0, savedScrollY);
+      }, 10000);
 
     }
 
