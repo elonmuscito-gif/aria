@@ -15,6 +15,7 @@ export interface AgentConfig {
 export interface TrackResult {
   success: boolean;
   eventId: string;
+  limitReached?: boolean;
   insights?: {
     scope: { valid: boolean; attempted: string; declared: string[]; message: string };
     signature: { valid: boolean };
@@ -54,6 +55,23 @@ export class GateTimeoutException extends Error {
   ) {
     super(`Gate timeout: no approval received for '${action}'`);
     this.name = 'GateTimeoutException';
+  }
+}
+
+export class EventLimitException extends Error {
+  public readonly code = 'EVENT_LIMIT_REACHED';
+  public readonly currentEvents?: number;
+  public readonly maxEvents?: number;
+
+  constructor(
+    message: string,
+    currentEvents?: number,
+    maxEvents?: number
+  ) {
+    super(message);
+    this.name = 'EventLimitException';
+    this.currentEvents = currentEvents;
+    this.maxEvents = maxEvents;
   }
 }
 
@@ -375,8 +393,14 @@ export class ARIAClient {
     (async () => {
       try {
         await this.buildAndSendEvent(agentDid, secret, action, outcome, durationMs, error);
-      } catch {
-        // Silently fail — fire and forget
+      } catch (err) {
+        if (err instanceof EventLimitException) {
+          console.warn(
+            '[ARIA] Monthly event limit reached. Events are being dropped. ' +
+            'Upgrade your plan at https://ariatrust.org/pricing'
+          );
+        }
+        // All other errors: silently fail — fire and forget
       }
     })();
   }
@@ -414,6 +438,21 @@ export class ARIAClient {
     });
 
     if (!res.ok) {
+      if (res.status === 429) {
+        const errorData = await res.json().catch(() => ({})) as {
+          code?: string;
+          error?: string;
+          current_events?: number;
+          max_events?: number;
+        };
+        if (errorData.code === 'EVENT_LIMIT_REACHED') {
+          throw new EventLimitException(
+            errorData.error ?? 'Monthly event limit reached',
+            errorData.current_events,
+            errorData.max_events
+          );
+        }
+      }
       return { success: false, eventId };
     }
 

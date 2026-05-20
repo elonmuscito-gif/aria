@@ -2,11 +2,24 @@ import { Router } from "express";
 import { randomUUID, randomBytes, hkdfSync } from "crypto";
 import * as sss from "shamirs-secret-sharing";
 import bcrypt from "bcrypt";
+import rateLimit from "express-rate-limit";
 import { query } from "../db/pool.js";
 import { requireApiKey } from "../middleware/auth.js";
 import { encryptSecret } from "../utils/crypto.js";
 import { checkAgentLimit } from "../middleware/plans.js";
 import { PLANS, type Plan } from "../config/plans.js";
+
+const secretRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => `${req.ip ?? 'unknown'}:${req.apiKeyId ?? 'unknown'}`,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many secret retrieval attempts. Maximum 5 per hour.',
+      code: 'RATE_LIMITED'
+    });
+  }
+});
 
 export const agentsRouter = Router();
 
@@ -318,7 +331,7 @@ agentsRouter.delete("/:did", async (req, res) => {
   }
 });
 
-agentsRouter.get("/:did/secret", async (req, res) => {
+agentsRouter.get("/:did/secret", secretRateLimiter, async (req, res) => {
   try {
     const keyResult = await query<{ user_id: string | null }>(
       'SELECT user_id FROM api_keys WHERE id = $1',
@@ -360,11 +373,28 @@ agentsRouter.get("/:did/secret", async (req, res) => {
     const { decryptSecret } = await import('../utils/crypto.js');
     const secret = decryptSecret(agent.hmac_key, agent.did);
 
+    await query(`
+      INSERT INTO admin_logs
+        (action, target_type, target_id, details, ip_address)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [
+      'secret_retrieved',
+      'agent',
+      req.params.did,
+      JSON.stringify({
+        api_key_id: req.apiKeyId,
+        timestamp: new Date().toISOString()
+      }),
+      req.ip ?? 'unknown'
+    ]);
+
     return res.json({
       did: agent.did,
       name: agent.name,
       secret,
-      signing_version: agent.signing_version
+      signing_version: agent.signing_version,
+      warning: 'This secret signs your agent events. Never expose it client-side or commit it to code.',
+      retrieved_at: new Date().toISOString()
     });
   } catch (err) {
     console.error('[agents] GET /:did/secret error:',

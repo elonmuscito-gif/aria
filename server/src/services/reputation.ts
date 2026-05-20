@@ -372,5 +372,28 @@ export async function applyReputationDecay(): Promise<void> {
   }
 }
 
-setInterval(applyReputationDecay, 24 * 60 * 60 * 1000);
-setTimeout(applyReputationDecay, 60 * 1000);
+const DECAY_LOCK_ID = 123456789;
+
+async function runDecayWithLock(): Promise<void> {
+  try {
+    const lockResult = await query<{ acquired: boolean }>(`
+      SELECT pg_try_advisory_lock(${DECAY_LOCK_ID}) AS acquired
+    `);
+    const acquired = lockResult.rows[0]?.acquired;
+    if (!acquired) {
+      console.log('[reputation] Decay lock not acquired — another instance is running it');
+      return;
+    }
+    try {
+      await applyReputationDecay();
+    } finally {
+      await query(`SELECT pg_advisory_unlock(${DECAY_LOCK_ID})`);
+    }
+  } catch (err) {
+    console.error('[reputation] Decay lock error:',
+      err instanceof Error ? err.message : 'Unknown');
+  }
+}
+
+setInterval(runDecayWithLock, 24 * 60 * 60 * 1000);
+setTimeout(runDecayWithLock, 60 * 1000);
