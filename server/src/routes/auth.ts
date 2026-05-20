@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { randomUUID, createHash, randomBytes } from "crypto";
+import { randomUUID, createHash, randomBytes, randomInt } from "crypto";
 import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
@@ -360,7 +360,7 @@ authRouter.post("/login", loginLimiter, validateLoginInput, async (req, res) => 
       });
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = randomInt(100000, 1000000).toString();
     const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
     await query(

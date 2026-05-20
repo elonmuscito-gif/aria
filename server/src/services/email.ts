@@ -167,11 +167,208 @@ export async function sendGateRequestEmail(
   requestId: string,
   timeoutMinutes: number
 ): Promise<void> {
-  // Email notifications disabled - using dashboard
-  // toast notifications instead
+  const approveUrl =
+    `${process.env.APP_URL}/v1/gate/approve/${requestId}`;
+  const denyUrl =
+    `${process.env.APP_URL}/v1/gate/deny-page/${requestId}`;
+  const dashboardUrl =
+    `${process.env.APP_URL}/app`;
+
+  if (!process.env.RESEND_API_KEY) {
+    console.log(
+      `[gate] Email not configured. Gate request ${requestId} ` +
+      `for ${agentName} → ${action}`
+    );
+    console.log(`[gate] Approve: ${approveUrl}`);
+    console.log(`[gate] Deny: ${denyUrl}`);
+    return;
+  }
+
+  await getResend().emails.send({
+    from: 'ARIA Gate <noreply@ariatrust.org>',
+    to: ownerEmail,
+    subject: `Action Required: ${agentName} wants to execute ${action}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'IBM Plex Mono', monospace, sans-serif;
+      background: #030507;
+      color: #f0ece4;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      background: #070b10;
+      border: 1px solid rgba(212,168,67,0.2);
+      border-top: 3px solid #c9a84c;
+      border-radius: 8px;
+      padding: 40px;
+    }
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #d4a843;
+      letter-spacing: 4px;
+      margin-bottom: 8px;
+    }
+    .label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: rgba(240,236,228,0.4);
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+    h1 {
+      font-size: 16px;
+      color: #f0ece4;
+      margin-bottom: 8px;
+    }
+    .agent-box {
+      background: #04060d;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 6px;
+      padding: 20px;
+      margin: 24px 0;
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    .field-label {
+      font-size: 10px;
+      color: rgba(240,236,228,0.4);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .field-value {
+      font-size: 14px;
+      color: #f0ece4;
+      font-family: monospace;
+    }
+    .action-value {
+      color: #e8c87a;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin: 28px 0;
+    }
+    .btn-approve {
+      flex: 1;
+      display: inline-block;
+      padding: 14px 20px;
+      background: #28c841;
+      color: #030507;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: 700;
+      font-size: 14px;
+      text-align: center;
+    }
+    .btn-deny {
+      flex: 1;
+      display: inline-block;
+      padding: 14px 20px;
+      background: transparent;
+      color: #c94c4c;
+      border: 1px solid #c94c4c;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: 700;
+      font-size: 14px;
+      text-align: center;
+    }
+    .timeout {
+      font-size: 12px;
+      color: rgba(240,236,228,0.4);
+      margin-bottom: 24px;
+    }
+    .footer {
+      font-size: 11px;
+      color: rgba(240,236,228,0.3);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 20px;
+      margin-top: 8px;
+    }
+    a.dashboard {
+      color: #c9a84c;
+      text-decoration: none;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">ARIA</div>
+    <div class="label">Gate — Approval Required</div>
+
+    <h1>An agent wants to execute a critical action</h1>
+    <p style="color:rgba(240,236,228,0.6);font-size:14px;
+               line-height:1.6;margin-bottom:0">
+      Your agent is requesting permission before proceeding.
+      Review the action below and approve or deny.
+    </p>
+
+    <div class="agent-box">
+      <div class="field">
+        <div class="field-label">Agent</div>
+        <div class="field-value">${agentName}</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Action</div>
+        <div class="field-value action-value">${action}</div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <div class="field-label">Request ID</div>
+        <div class="field-value"
+             style="font-size:11px;color:rgba(240,236,228,0.4)">
+          ${requestId}
+        </div>
+      </div>
+    </div>
+
+    <div class="timeout">
+      This request expires in ${timeoutMinutes} minutes.
+      No response = automatically denied.
+    </div>
+
+    <div class="buttons">
+      <a href="${approveUrl}" class="btn-approve">
+        Approve
+      </a>
+      <a href="${denyUrl}" class="btn-deny">
+        Deny
+      </a>
+    </div>
+
+    <p style="font-size:12px;color:rgba(240,236,228,0.4);
+               text-align:center;margin-bottom:20px">
+      Or manage this request in your
+      <a href="${dashboardUrl}" class="dashboard">
+        ARIA Dashboard
+      </a>
+    </p>
+
+    <div class="footer">
+      ARIA · ariatrust.org<br>
+      You received this because you own an agent
+      that requested approval.
+    </div>
+  </div>
+</body>
+</html>
+    `
+  });
+
   console.log(
-    `[gate] Notification suppressed for ${ownerEmail}: ` +
-    `${agentName} → ${action} (${requestId})`
+    `[gate] Email sent to ${ownerEmail} for request ${requestId}`
   );
-  return;
 }

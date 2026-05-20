@@ -56,6 +56,7 @@ export async function generateInnocenceProof(
     WHERE agent_id = $1
       AND client_ts BETWEEN $2 AND $3
     ORDER BY client_ts ASC
+    LIMIT 10000
   `, [agentId, windowStart, windowEnd]);
 
   const events = allEvents.rows;

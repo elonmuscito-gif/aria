@@ -284,6 +284,15 @@ eventsRouter.post("/batch", requireFeature('batchEvents'), checkEventLimit, asyn
     return res.status(400).json({ error: "Batch size limit is 500 events", code: "BATCH_TOO_LARGE" });
   }
 
+  const firstAgentDid = events[0]?.agentDid;
+  const allSameAgent = events.every(e => e.agentDid === firstAgentDid);
+  if (!allSameAgent) {
+    return res.status(400).json({
+      error: 'All events in a batch must belong to the same agent. Send separate batch requests for different agents.',
+      code: 'MIXED_AGENTS_IN_BATCH'
+    });
+  }
+
   const accepted: string[] = [];
   const rejected: Array<{ eventId: string; reason: string }> = [];
   
@@ -831,6 +840,7 @@ function validateEvent(e: Partial<IncomingEvent>): string | null {
   if (!e.action || typeof e.action !== "string") return "action is required";
   if (!["success", "error", "anomaly", "blocked"].includes(e.outcome ?? "")) return "outcome must be success | error | anomaly | blocked";
   if (typeof e.withinScope !== "boolean") return "withinScope must be boolean";
+  if (e.outcome === "blocked" && e.withinScope === true) return "outcome:blocked is incompatible with withinScope:true";
   if (typeof e.durationMs !== "number" || e.durationMs < 0) return "durationMs must be a non-negative number";
   if (!e.timestamp || isNaN(Date.parse(e.timestamp))) return "timestamp must be a valid ISO 8601 date";
   if (!e.signature || typeof e.signature !== "string") return "signature is required";

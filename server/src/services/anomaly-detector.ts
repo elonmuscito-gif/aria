@@ -93,9 +93,36 @@ export async function cleanupOldAnomalies() {
   }
 }
 
-cleanupOldAnomalies().catch(console.error);
+const ANOMALY_CLEANUP_LOCK_ID = 987654321;
 
-setInterval(async () => {
-  await cleanupOldAnomalies();
-  console.log("[anomaly-detector] Archived old anomalies");
-}, 24 * 60 * 60 * 1000);
+async function runCleanupWithLock(): Promise<void> {
+  try {
+    const lockResult = await query<{ acquired: boolean }>(
+      'SELECT pg_try_advisory_lock($1) AS acquired',
+      [ANOMALY_CLEANUP_LOCK_ID]
+    );
+
+    if (!lockResult.rows[0]?.acquired) {
+      console.log(
+        '[anomaly] Cleanup lock not acquired — ' +
+        'another instance is running it'
+      );
+      return;
+    }
+
+    try {
+      await cleanupOldAnomalies();
+    } finally {
+      await query(
+        'SELECT pg_advisory_unlock($1)',
+        [ANOMALY_CLEANUP_LOCK_ID]
+      );
+    }
+  } catch (err) {
+    console.error('[anomaly] Cleanup lock error:',
+      err instanceof Error ? err.message : 'Unknown');
+  }
+}
+
+setTimeout(runCleanupWithLock, 30 * 1000);
+setInterval(runCleanupWithLock, 24 * 60 * 60 * 1000);

@@ -32,7 +32,7 @@ const gateRequestLimiter = rateLimit({
   })() : undefined,
   handler: (_req, res) => {
     res.status(429).json({
-      error: 'Too many gate requests. Max 10 per minute.',
+      error: 'Too many gate requests. Max 60 per minute.',
       code: 'RATE_LIMITED'
     });
   }
@@ -144,6 +144,7 @@ gateRouter.get('/deny-page/:id', async (req, res) => {
            resolved_by = 'email_link'
        WHERE id = $1
          AND status = 'pending'
+         AND timeout_at > NOW() - INTERVAL '24 hours'
        RETURNING id, agent_name, action`,
       [req.params.id]
     );
