@@ -25,6 +25,7 @@
     "migrate:017": "tsx migrate-017.ts",
     "migrate:018": "tsx migrate-018.ts",
     "migrate:019": "tsx migrate-019.ts",
+    "migrate:020": "tsx migrate-020.ts",
     "cli": "node cli-dashboard.mjs",
     "test:integration": "tsx src/tests/integration.test.ts"
   },
@@ -33,6 +34,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "arctic": "^3.7.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
