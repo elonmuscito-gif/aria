@@ -205,6 +205,39 @@ POST /v1/witness/confirm/:id # Submit external count
 
 </details>
 
+<details>
+<summary>SIEM Integration — OpenTelemetry export</summary>
+
+ARIA events can be exported in OpenTelemetry Log format for direct ingestion into your SIEM:
+
+```bash
+GET /v1/events/export?format=otel&agentDid=did:agentrust:...
+```
+
+Each event becomes an OTEL `logRecord` with typed attributes:
+
+| Attribute | Value |
+|-----------|-------|
+| `aria.agent.did` | Agent DID |
+| `aria.agent.name` | Agent name |
+| `aria.event.action` | Action attempted |
+| `aria.event.outcome` | `success` / `error` / `blocked` / `anomaly` |
+| `aria.event.within_scope` | `true` / `false` |
+| `aria.event.signature_valid` | Cryptographic integrity check |
+| `aria.event.duration_ms` | Execution time |
+| `aria.trust.score` | Agent trust score at export time |
+
+Severity mapping: `success → INFO (9)` · `blocked → WARN (13)` · `error/anomaly → ERROR (17)`
+
+Compatible with any OTEL-capable destination:
+- **Splunk** — via OpenTelemetry Collector
+- **Datadog** — via OTEL exporter (`DD_OTLP_CONFIG_LOGS_ENABLED=true`)
+- **AWS CloudWatch** — via OTEL Lambda layer
+- **Grafana Loki** — via Promtail OTEL receiver
+- **Elastic/OpenSearch** — via OTEL data prepper
+
+</details>
+
 ---
 
 ## Security

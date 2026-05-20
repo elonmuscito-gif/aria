@@ -617,9 +617,11 @@ eventsRouter.get("/export", requireFeature('export'), async (req, res) => {
         e.client_ts AS timestamp,
         e.error,
         a.name AS agent_name,
-        a.did AS agent_did
+        a.did AS agent_did,
+        r.final_score AS trust_score
       FROM events e
       JOIN agents a ON a.id = e.agent_id
+      LEFT JOIN reputation_snapshots r ON r.agent_id = a.id
       WHERE (a.api_key_id = $1 OR a.user_id = $2)
         AND a.did = $3
     `;
@@ -653,6 +655,58 @@ eventsRouter.get("/export", requireFeature('export'), async (req, res) => {
     sql += ` ORDER BY e.client_ts DESC LIMIT 50000`;
 
     const result = await query(sql, params);
+
+    if (format === 'otel') {
+      const otelLogs = {
+        resourceLogs: [{
+          resource: {
+            attributes: [
+              { key: 'service.name',    value: { stringValue: 'aria-agent-trust' } },
+              { key: 'service.version', value: { stringValue: '1.0.0' } }
+            ]
+          },
+          scopeLogs: [{
+            scope: { name: 'aria.events', version: '1.0.0' },
+            logRecords: result.rows.map((e: Record<string, unknown>) => ({
+              timeUnixNano: String(new Date(e.timestamp as string).getTime() * 1_000_000),
+              severityNumber:
+                e.outcome === 'success' ? 9  :
+                e.outcome === 'blocked' ? 13 :
+                e.outcome === 'error'   ? 17 :
+                e.outcome === 'anomaly' ? 17 : 9,
+              severityText:
+                e.outcome === 'success' ? 'INFO'  :
+                e.outcome === 'blocked' ? 'WARN'  :
+                e.outcome === 'error'   ? 'ERROR' :
+                e.outcome === 'anomaly' ? 'ERROR' : 'INFO',
+              body: {
+                stringValue: `[ARIA] ${e.agent_did} → ${e.action} → ${e.outcome}`
+              },
+              attributes: [
+                { key: 'aria.agent.did',             value: { stringValue: String(e.agent_did ?? '') } },
+                { key: 'aria.agent.name',            value: { stringValue: String(e.agent_name ?? '') } },
+                { key: 'aria.event.id',              value: { stringValue: String(e.event_id ?? '') } },
+                { key: 'aria.event.action',          value: { stringValue: String(e.action ?? '') } },
+                { key: 'aria.event.outcome',         value: { stringValue: String(e.outcome ?? '') } },
+                { key: 'aria.event.within_scope',    value: { boolValue: Boolean(e.scope_valid) } },
+                { key: 'aria.event.signature_valid', value: { boolValue: Boolean(e.signature_valid) } },
+                { key: 'aria.event.duration_ms',     value: { intValue: Number(e.duration_ms ?? 0) } },
+                { key: 'aria.trust.score',           value: { intValue: Number(e.trust_score ?? 0) } }
+              ],
+              traceId: '',
+              spanId: ''
+            }))
+          }]
+        }]
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="aria-events-otel-${Date.now()}.json"`
+      );
+      return res.json(otelLogs);
+    }
 
     if (format === 'json') {
       res.setHeader('Content-Type', 'application/json');

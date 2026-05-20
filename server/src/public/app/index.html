@@ -1911,6 +1911,7 @@
           <button onclick="exportEvents('${agent.did}','errors')" style="padding:7px 14px;background:transparent;border:1px solid rgba(201,76,76,0.3);color:#c94c4c;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Errors</button>
           <button onclick="exportEvents('${agent.did}','violations')" style="padding:7px 14px;background:transparent;border:1px solid rgba(201,168,76,0.3);color:#c9a84c;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Violations</button>
           <button onclick="exportEvents('${agent.did}','anomalies')" style="padding:7px 14px;background:transparent;border:1px solid rgba(255,189,46,0.3);color:#ffbd2e;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Anomalies</button>
+          <button onclick="exportEvents('${agent.did}','all','otel')" style="padding:7px 14px;background:transparent;border:1px solid rgba(74,158,187,0.3);color:#4a9ebb;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">Export OTEL</button>
         </div>
         <div id="detail-patterns"></div>
         <div class="section-title" style="margin-bottom:16px">Event History</div>
@@ -2173,20 +2174,22 @@
     }
   }
 
-  function exportEvents(did, type) {
-    const url = `${API_BASE}/v1/events/export?agentDid=${encodeURIComponent(did)}&type=${type}&format=csv`;
+  function exportEvents(did, type, format) {
+    const fmt = format || 'csv';
+    const ext = fmt === 'csv' ? 'csv' : 'json';
+    const url = `${API_BASE}/v1/events/export?agentDid=${encodeURIComponent(did)}&type=${type}&format=${fmt}`;
     const a = document.createElement('a');
     fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } })
       .then(res => res.blob())
       .then(blob => {
         const blobUrl = URL.createObjectURL(blob);
         a.href = blobUrl;
-        a.setAttribute('download', `aria-events-${type}-${Date.now()}.csv`);
+        a.setAttribute('download', `aria-events-${type}-${Date.now()}.${ext}`);
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(blobUrl);
-        showDashboardNotice(`Exported ${type} events`, 'success');
+        showDashboardNotice(`Exported ${type} events as ${fmt.toUpperCase()}`, 'success');
       })
       .catch(() => showDashboardNotice('Export failed', 'error'));
   }
