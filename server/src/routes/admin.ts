@@ -89,6 +89,36 @@ adminRouter.get('/users/:userId/agents', async (req, res) => {
   }
 });
 
+// POST /v1/admin/users/:userId/plan
+adminRouter.post('/users/:userId/plan', async (req, res) => {
+  const { plan } = req.body as { plan?: string };
+
+  if (!['free', 'professional', 'enterprise'].includes(plan ?? '')) {
+    return res.status(400).json({
+      error: 'Plan must be free, professional, or enterprise'
+    });
+  }
+
+  try {
+    await query(`
+      UPDATE users
+      SET plan = $1,
+          plan_started_at = NOW()
+      WHERE id = $2
+    `, [plan, req.params.userId]);
+
+    await logAdminAction(
+      'change_plan', 'user', req.params.userId,
+      { plan }, req.ip ?? 'unknown'
+    );
+
+    return res.json({ message: `Plan updated to ${plan}` });
+  } catch (err) {
+    console.error('[admin] POST /users/:userId/plan error:', err);
+    return res.status(500).json({ error: 'Internal error' });
+  }
+});
+
 // POST /v1/admin/users/:userId/suspend
 adminRouter.post('/users/:userId/suspend', async (req, res) => {
   try {

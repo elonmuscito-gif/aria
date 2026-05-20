@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { requireApiKey } from '../middleware/auth.js';
+import { requireFeature } from '../middleware/plans.js';
 import {
   generateInnocenceProof,
   generateConsistencyProof,
@@ -37,7 +38,7 @@ async function getUserId(
   return result.rows[0]?.user_id ?? null;
 }
 
-zeroproofRouter.post('/innocence', async (req, res) => {
+zeroproofRouter.post('/innocence', requireFeature('zeroproof'), async (req, res) => {
   const { agentDid, forbidden_pattern, window_days } =
     req.body as {
       agentDid?: string;
@@ -82,7 +83,7 @@ zeroproofRouter.post('/innocence', async (req, res) => {
   }
 });
 
-zeroproofRouter.post('/consistency', async (req, res) => {
+zeroproofRouter.post('/consistency', requireFeature('zeroproof'), async (req, res) => {
   const { agentDid, min_success_rate, window_days } =
     req.body as {
       agentDid?: string;
@@ -127,7 +128,7 @@ zeroproofRouter.post('/consistency', async (req, res) => {
   }
 });
 
-zeroproofRouter.post('/limits', async (req, res) => {
+zeroproofRouter.post('/limits', requireFeature('zeroproof'), async (req, res) => {
   const { agentDid, max_events_per_hour, window_days } =
     req.body as {
       agentDid?: string;

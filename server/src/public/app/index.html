@@ -1730,13 +1730,41 @@
       const agents = data.agents || [];
       const el     = document.getElementById('agents-list');
 
+      const plan = data.plan || 'free';
+      const planColors = {
+        free: 'rgba(248,244,238,0.3)',
+        professional: '#d4a843',
+        enterprise: '#4a9ebb'
+      };
+      const planColor = planColors[plan] || planColors.free;
+      let planBadge = `
+        <div style="display:inline-flex;align-items:center;
+                    gap:6px;padding:4px 12px;
+                    border:1px solid ${planColor};
+                    border-radius:20px;margin-bottom:24px">
+          <div style="width:6px;height:6px;border-radius:50%;
+                      background:${planColor}"></div>
+          <span style="font-size:11px;font-weight:600;
+                       color:${planColor};
+                       letter-spacing:1px;
+                       text-transform:uppercase">
+            ${plan} plan
+          </span>
+          ${plan === 'free' ? `
+            <a href="/pricing"
+               style="font-size:11px;color:#d4a843;
+                      text-decoration:none;margin-left:8px">
+              Upgrade →
+            </a>` : ''}
+        </div>`;
+
       if (!agents.length) {
-        el.innerHTML = `<div class="empty-state"><h3>No agents yet</h3>
+        el.innerHTML = planBadge + `<div class="empty-state"><h3>No agents yet</h3>
           <p>Register your first agent via the SDK to see it here.</p></div>`;
         return;
       }
 
-      let html = `<div class="agents-table">
+      let html = planBadge + `<div class="agents-table">
         <div class="agent-row header">
           <div>Agent</div><div>DID</div><div>Trust</div>
           <div>Level</div><div>Events</div><div>Last Seen</div>

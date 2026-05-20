@@ -26,6 +26,7 @@
     "migrate:018": "tsx migrate-018.ts",
     "migrate:019": "tsx migrate-019.ts",
     "migrate:020": "tsx migrate-020.ts",
+    "migrate:021": "tsx migrate-021.ts",
     "cli": "node cli-dashboard.mjs",
     "test:integration": "tsx src/tests/integration.test.ts"
   },

@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { requireApiKey } from '../middleware/auth.js';
 import { resolveWitnessCheck, getWitnessSummary } from '../services/shadow-witness.js';
+import { requireFeature } from '../middleware/plans.js';
 
 export const witnessRouter = Router();
 witnessRouter.use(requireApiKey);
 
 // POST /v1/witness/sources — Register external witness source
-witnessRouter.post('/sources', async (req, res) => {
+witnessRouter.post('/sources', requireFeature('shadowWitness'), async (req, res) => {
   const { agentDid, name, source_type, action_pattern } = req.body as {
     agentDid?: string;
     name?: string;

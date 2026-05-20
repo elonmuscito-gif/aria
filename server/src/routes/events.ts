@@ -6,6 +6,11 @@ import { reputationQueue } from "../services/reputation.js";
 import { recordAnomaly } from "../services/anomaly-detector.js";
 import { decryptSecret } from "../utils/crypto.js";
 import { getRedisClient } from "../utils/redis.js";
+import {
+  requireFeature,
+  checkEventLimit,
+  incrementEventCount
+} from '../middleware/plans.js';
 
 const SENSITIVE_META_FIELDS = [
   'hardwareFingerprint',
@@ -159,7 +164,7 @@ function determineSignatureValidity(
   return signatureValid;
 }
 
-eventsRouter.post("/", async (req, res) => {
+eventsRouter.post("/", checkEventLimit, async (req, res) => {
   const event = req.body as IncomingEvent;
   logEvent("log", "Received single event ingestion request", {
     apiKeyId: req.apiKeyId,
@@ -220,10 +225,13 @@ eventsRouter.post("/", async (req, res) => {
       }
     };
 
-    return res.status(202).json({ 
-      accepted: true, 
+    const userId = (req as any).userId as string | undefined;
+    if (userId) incrementEventCount(userId, 1).catch(() => {});
+
+    return res.status(202).json({
+      accepted: true,
       eventId: event.eventId,
-      insights 
+      insights
     });
   } catch (err: unknown) {
     if (err instanceof Error && err.message === "AGENT_NOT_FOUND") {
@@ -252,7 +260,7 @@ eventsRouter.post("/", async (req, res) => {
   }
 });
 
-eventsRouter.post("/batch", async (req, res) => {
+eventsRouter.post("/batch", requireFeature('batchEvents'), checkEventLimit, async (req, res) => {
   const { events } = req.body as { events?: IncomingEvent[] };
   logEvent("log", "Received batch event ingestion request", {
     apiKeyId: req.apiKeyId,
@@ -475,6 +483,11 @@ eventsRouter.post("/batch", async (req, res) => {
 
   reputationQueue.push(agentId);
 
+  const userId = (req as any).userId as string | undefined;
+  if (userId && accepted.length > 0) {
+    incrementEventCount(userId, accepted.length).catch(() => {});
+  }
+
   return res.status(202).json({
     accepted: accepted.length,
     rejected: rejected.length,
@@ -568,7 +581,7 @@ eventsRouter.get("/", async (req, res) => {
   }
 });
 
-eventsRouter.get("/export", async (req, res) => {
+eventsRouter.get("/export", requireFeature('export'), async (req, res) => {
   try {
     const {
       agentDid,

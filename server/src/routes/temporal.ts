@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { requireApiKey } from '../middleware/auth.js';
+import { requireFeature } from '../middleware/plans.js';
 import {
   createTemporalAnchor,
   verifyEventProof,
@@ -11,7 +12,7 @@ export const temporalRouter = Router();
 temporalRouter.use(requireApiKey);
 
 // POST /v1/temporal/anchor/:did — manually trigger anchor creation
-temporalRouter.post('/anchor/:did', async (req, res) => {
+temporalRouter.post('/anchor/:did', requireFeature('temporalAnchor'), async (req, res) => {
   try {
     const keyResult = await query<{ user_id: string | null }>(
       'SELECT user_id FROM api_keys WHERE id = $1',

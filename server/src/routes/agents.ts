@@ -5,12 +5,14 @@ import bcrypt from "bcrypt";
 import { query } from "../db/pool.js";
 import { requireApiKey } from "../middleware/auth.js";
 import { encryptSecret } from "../utils/crypto.js";
+import { checkAgentLimit } from "../middleware/plans.js";
+import { PLANS, type Plan } from "../config/plans.js";
 
 export const agentsRouter = Router();
 
 agentsRouter.use(requireApiKey);
 
-agentsRouter.post("/", async (req, res) => {
+agentsRouter.post("/", checkAgentLimit, async (req, res) => {
   const { name, scope, meta, hardwareFingerprint } = req.body as {
     name?: string;
     scope?: string[];
@@ -205,7 +207,20 @@ agentsRouter.get("/", async (req, res) => {
       trustLevel: row.trust_level,
     }));
 
-    return res.json({ agents });
+    const planResult = await query<{ plan: string }>(
+      `SELECT u.plan FROM users u
+       JOIN api_keys ak ON ak.owner_email = u.email
+       WHERE ak.id = $1`,
+      [req.apiKeyId]
+    );
+
+    const plan = (planResult.rows[0]?.plan ?? 'free') as Plan;
+
+    return res.json({
+      agents,
+      plan,
+      plan_config: PLANS[plan]
+    });
   } catch (err) {
     console.error('[routes/agents] GET / error:', err instanceof Error ? err.message : 'Unknown error');
     return res.status(500).json({ error: 'Service unavailable', code: 'INTERNAL_ERROR' });

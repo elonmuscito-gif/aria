@@ -4,6 +4,7 @@ import { RedisStore } from 'rate-limit-redis';
 import { query } from '../db/pool.js';
 import { requireApiKey } from '../middleware/auth.js';
 import { sendGateRequestEmail } from '../services/email.js';
+import { requireFeature } from '../middleware/plans.js';
 import { getRedisClient } from '../utils/redis.js';
 
 export const gateRouter = Router();
@@ -246,7 +247,7 @@ gateRouter.post('/deny/:id', async (req, res) => {
 // ── POST /v1/gate/request ─────────────────────────────────────────────────
 // SDK calls this when agent attempts a gated action.
 // Returns { requestId, status } immediately.
-gateRouter.post('/request', gateRequestLimiter, requireApiKey, async (req, res) => {
+gateRouter.post('/request', gateRequestLimiter, requireApiKey, requireFeature('gate'), async (req, res) => {
   const { agentDid, action, context } = req.body as {
     agentDid?: string;
     action?: string;
